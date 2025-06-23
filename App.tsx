@@ -1,16 +1,24 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
 import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Provider } from 'react-redux';
+import { store } from './editor/store';
+import Canvas from './editor/components/canvas/Canvas';
+import PropertiesPanel from './editor/components/properties/PropertiesPanel';
+import ResourceManager from './editor/components/resources/ResourceManager';
+import Button from './ui/Button';
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>简易Cocos Creator</Text>
-      <View style={styles.editor}>
-        <Text>场景编辑器区域</Text>
+    <Provider store={store}>
+      <View style={styles.container}>
+        <Text style={styles.title}>简易Cocos Creator</Text>
+        <View style={styles.editorLayout}>
+          <Canvas />
+          <PropertiesPanel />
+        </View>
+        <ResourceManager />
       </View>
-      <StatusBar style="auto" />
-    </View>
+    </Provider>
   );
 }
 
@@ -25,11 +33,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
   },
-  editor: {
+  editorLayout: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 10,
+    flexDirection: 'row',
   },
 });

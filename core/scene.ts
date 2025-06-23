@@ -7,6 +7,10 @@ export class Scene {
     addEntity (entity: Entity): void {
         this.entities.push(entity);
     }
+    
+    removeEntity(id: string) {
+    this.entities = this.entities.filter(e => e.id !== id);
+  }
 
     getEntities (): Entity[] {
         return [...this.entities];
