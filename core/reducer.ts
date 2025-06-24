@@ -71,6 +71,29 @@ export function editorReducer(
       };
     }
 
+    case "ADD_TEXTURE":
+      return {
+        ...state,
+        textures: [...state.textures, action.payload],
+      };
+
+    case "UPDATE_ENTITY_TEXTURE": {
+      const { entityId, textureId } = action.payload;
+      return {
+        ...state,
+        entities: {
+          ...state.entities,
+          [entityId]: {
+            ...state.entities[entityId],
+            properties: {
+              ...state.entities[entityId].properties,
+              texture: textureId,
+            },
+          },
+        },
+      };
+    }
+
     default:
       return state;
   }
@@ -80,4 +103,5 @@ export function editorReducer(
 const initialState: EditorState = {
   entities: {},
   selectedEntityId: null,
+  textures: [],
 };

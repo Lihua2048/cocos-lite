@@ -4,7 +4,7 @@ import { Provider } from 'react-redux';
 import { store } from './editor/store';
 import Canvas from './editor/components/canvas/Canvas';
 import PropertiesPanel from './editor/components/properties/PropertiesPanel';
-import EntityListPane from './editor/components/resources/EntityListPane';
+import EntityListPane from './editor/components/resources/EntityListPanel';
 import Button from './ui/Button';
 
 export default function App() {

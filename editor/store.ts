@@ -1,14 +1,12 @@
 import { createStore } from 'redux';
 import { editorReducer } from '../core/reducer';
-import { EditorState, EditorAction } from '../core/types';
+import { EditorState} from '../core/types';
+import { EditorAction } from '../core/actions';
 
-const initialState: EditorState = {
+const initialState  = {
   entities: {},
-  selectedEntityId: null
+  selectedEntityId: null,
+  textures: []
 };
 
-// 使用类型参数明确指定类型
-export const store = createStore<EditorState, EditorAction, {}, {}>(
-  editorReducer,
-  initialState
-);
+export const store = createStore(editorReducer, initialState);

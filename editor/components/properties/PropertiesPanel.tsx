@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput } from "react-native";
+import { Picker } from "@react-native-picker/picker"; // 修复Picker导入问题
 import { useSelector, useDispatch } from "react-redux";
-import {
-  updateEntityProperty,
-} from "../../../core/actions";
-import { RootState } from "../../../core/types";
+import { updateEntityProperty, updateEntityTexture} from "../../../core/actions";
+import { RootState, TextureResource } from "../../../core/types"; // 导入TextureResource类型
 import { EntityProperty } from "../../../core/types";
+
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
   const selectedEntityId = useSelector(
     (state: RootState) => state.selectedEntityId
   );
   const entities = useSelector((state: RootState) => state.entities);
+  const textures = useSelector((state: RootState) => state.textures); // 添加textures选择器
   const selectedEntity =
     selectedEntityId && entities[selectedEntityId]
       ? entities[selectedEntityId]
@@ -110,6 +111,26 @@ export default function PropertiesPanel() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>实体属性</Text>
+      <Text>纹理:</Text>
+      <Picker
+        selectedValue={selectedEntity.properties.texture || ""}
+        onValueChange={(value: string) => {
+          dispatch(updateEntityTexture(selectedEntity.id, value));
+        }}
+      >
+        <Picker.Item label="无纹理" value="" />
+        {textures.map(
+          (
+            texture: TextureResource // 使用TextureResource类型
+          ) => (
+            <Picker.Item
+              key={texture.id}
+              label={texture.name}
+              value={texture.id}
+            />
+          )
+        )}
+      </Picker>
 
       <View style={styles.propertyGroup}>
         <Text style={styles.subtitle}>位置</Text>
