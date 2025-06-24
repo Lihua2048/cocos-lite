@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useSelector } from 'react-redux';
 
-export default function ResourceManager() {
+export default function EntityListPane() {
   const entities = useSelector((state: any) => Object.values(state.entities));
 
   return (
