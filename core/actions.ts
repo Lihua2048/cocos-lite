@@ -5,7 +5,7 @@ import {
   UPDATE_ENTITY
 } from './types';
 
-import { Entity } from './types';
+import { Entity, EntityProperty } from './types';
 
 // 定义action类型
 export type EditorAction =
@@ -33,3 +33,26 @@ export const updateEntity = (id: string, updates: Partial<Entity>) => ({
   type: UPDATE_ENTITY,
   payload: { id, updates },
 });
+
+export const updateEntityProperty = (
+  id: string,
+  property: EntityProperty,
+  value: number | [number, number, number, number]
+) => {
+  // 修复位置更新
+  if (property === "x" || property === "y") {
+    return updateEntity(id, {
+      position: {
+        [property]: value as number
+      }
+    } as Partial<Entity>); // 添加类型断言
+  }
+  // 修复属性更新
+  else {
+    return updateEntity(id, {
+      properties: {
+        [property]: value
+      }
+    } as Partial<Entity>); // 添加类型断言
+  }
+};

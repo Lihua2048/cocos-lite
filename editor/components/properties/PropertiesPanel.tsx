@@ -1,54 +1,163 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useSelector } from 'react-redux';
-
-// 定义完整的根状态类型
-interface RootState {
-  selectedEntityId: string | null;
-  entities: Record<string, EntityState>;
-}
-
-interface EntityState {
-  id: string;
-  type: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  properties: {
-    width: number;
-    height: number;
-    color: [number, number, number, number];
-  };
-}
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TextInput } from "react-native";
+import { useSelector, useDispatch } from "react-redux";
+import { updateEntityProperty } from "../../../core/actions";
+import { EntityProperty, Entity, RootState } from "../../../core/types";
 
 export default function PropertiesPanel() {
-  // 使用正确的类型
-  const selectedEntityId = useSelector((state: RootState) => state.selectedEntityId);
+  const dispatch = useDispatch();
+  const selectedEntityId = useSelector(
+    (state: RootState) => state.selectedEntityId
+  );
   const entities = useSelector((state: RootState) => state.entities);
+  const selectedEntity =
+    selectedEntityId && entities[selectedEntityId]
+      ? entities[selectedEntityId]
+      : null;
 
-  const selectedEntity = selectedEntityId ? entities[selectedEntityId] : null;
+  // 本地状态管理编辑中的属性
+  const [editableProps, setEditableProps] = useState({
+    position: { x: 0, y: 0 },
+    width: 0,
+    height: 0,
+    color: [0, 0, 0, 1] as [number, number, number, number],
+  });
+
+  // 当选中实体变化时更新本地状态
+  useEffect(() => {
+    if (selectedEntity) {
+      setEditableProps({
+        position: { ...selectedEntity.position },
+        width: selectedEntity.properties.width,
+        height: selectedEntity.properties.height,
+        color: [...selectedEntity.properties.color],
+      });
+    }
+  }, [selectedEntity]);
+
+  // 处理输入变化
+  const handleInputChange = (field: string, value: string, index?: number) => {
+    const numValue = parseFloat(value) || 0;
+
+    if (field.includes(".")) {
+      const [parent, child] = field.split(".");
+      // 更新本地状态
+      setEditableProps((prev) => ({
+        ...prev,
+        [parent]: {
+          ...(prev as any)[parent],
+          [child]: numValue,
+        },
+      }));
+      // 更新Redux状态
+      dispatch(
+        updateEntityProperty(
+          selectedEntityId!,
+          child as EntityProperty,
+          numValue
+        )
+      );
+    } else if (index !== undefined) {
+      // 对于颜色，更新整个数组
+      setEditableProps((prev) => {
+        const newColor = [...prev.color] as [number, number, number, number];
+        newColor[index] = numValue;
+        return { ...prev, color: newColor };
+      });
+      // 更新Redux状态
+      const newColor = [...editableProps.color] as [
+        number,
+        number,
+        number,
+        number
+      ];
+      newColor[index] = numValue;
+      dispatch(updateEntityProperty(selectedEntityId!, "color", newColor));
+    } else {
+      // 更新本地状态
+      setEditableProps((prev) => ({
+        ...prev,
+        [field]: numValue,
+      }));
+      // 更新Redux状态
+      dispatch(
+        updateEntityProperty(
+          selectedEntityId!,
+          field as EntityProperty,
+          numValue
+        )
+      );
+    }
+  };
+
+  if (!selectedEntity) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.noSelection}>未选择实体</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {selectedEntity ? (
-        <>
-          <Text style={styles.title}>选中实体属性</Text>
-          <Text style={styles.property}>ID: {selectedEntity.id}</Text>
-          <Text style={styles.property}>类型: {selectedEntity.type}</Text>
-          <Text style={styles.property}>
-            位置: X: {Math.round(selectedEntity.position.x)} Y: {Math.round(selectedEntity.position.y)}
-          </Text>
-          <Text style={styles.property}>
-            尺寸: 宽: {selectedEntity.properties.width} 高: {selectedEntity.properties.height}
-          </Text>
-          <Text style={styles.property}>
-            颜色: R: {selectedEntity.properties.color[0].toFixed(2)} G: {selectedEntity.properties.color[1].toFixed(2)} B: {selectedEntity.properties.color[2].toFixed(2)}
-          </Text>
-        </>
-      ) : (
-        <Text style={styles.noSelection}>未选择实体</Text>
-      )}
+      <Text style={styles.title}>实体属性</Text>
+
+      <View style={styles.propertyGroup}>
+        <Text style={styles.subtitle}>位置</Text>
+        <View style={styles.inputRow}>
+          <Text style={styles.label}>X:</Text>
+          <TextInput
+            style={styles.input}
+            value={editableProps.position.x.toString()}
+            onChangeText={(v) => handleInputChange("position.x", v)}
+            keyboardType="numeric"
+          />
+          <Text style={styles.label}>Y:</Text>
+          <TextInput
+            style={styles.input}
+            value={editableProps.position.y.toString()}
+            onChangeText={(v) => handleInputChange("position.y", v)}
+            keyboardType="numeric"
+          />
+        </View>
+      </View>
+
+      <View style={styles.propertyGroup}>
+        <Text style={styles.subtitle}>尺寸</Text>
+        <View style={styles.inputRow}>
+          <Text style={styles.label}>宽:</Text>
+          <TextInput
+            style={styles.input}
+            value={editableProps.width.toString()}
+            onChangeText={(v) => handleInputChange("width", v)}
+            keyboardType="numeric"
+          />
+          <Text style={styles.label}>高:</Text>
+          <TextInput
+            style={styles.input}
+            value={editableProps.height.toString()}
+            onChangeText={(v) => handleInputChange("height", v)}
+            keyboardType="numeric"
+          />
+        </View>
+      </View>
+
+      <View style={styles.propertyGroup}>
+        <Text style={styles.subtitle}>颜色 (RGBA)</Text>
+        <View style={styles.inputRow}>
+          {["R", "G", "B", "A"].map((channel, index) => (
+            <View key={index} style={styles.colorInput}>
+              <Text style={styles.label}>{channel}:</Text>
+              <TextInput
+                style={styles.input}
+                value={editableProps.color[index].toString()}
+                onChangeText={(v) => handleInputChange("color", v, index)}
+                keyboardType="numeric"
+              />
+            </View>
+          ))}
+        </View>
+      </View>
     </View>
   );
 }
@@ -56,30 +165,55 @@ export default function PropertiesPanel() {
 const styles = StyleSheet.create({
   container: {
     width: 300,
-    backgroundColor: '#f0f0f0',
-    padding: 10,
+    backgroundColor: "#f0f0f0",
+    padding: 15,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     marginLeft: 10,
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#333",
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    paddingBottom: 8,
+    borderBottomColor: "#ddd",
+    paddingBottom: 10,
   },
-  property: {
-    fontSize: 14,
+  propertyGroup: {
+    marginBottom: 15,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: "600",
     marginBottom: 8,
-    color: '#555',
-    paddingVertical: 4,
+    color: "#444",
+  },
+  inputRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  colorInput: {
+    width: "48%",
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 14,
+    marginBottom: 4,
+    color: "#555",
+  },
+  input: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 4,
+    padding: 8,
+    fontSize: 14,
   },
   noSelection: {
-    color: '#999',
-    textAlign: 'center',
+    color: "#999",
+    textAlign: "center",
     marginTop: 20,
     fontSize: 16,
   },

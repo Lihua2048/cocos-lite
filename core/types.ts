@@ -36,7 +36,8 @@ export type EditorAction =
   | { type: 'UPDATE_ENTITY'; payload: { id: string; updates: Partial<Entity> } }
   | { type: 'REMOVE_ENTITY'; payload: { id: string } };
 
-export interface RootState {
-  editor: EditorState;
-  entities: Record<string, Entity>;
-}
+export type RootState = EditorState;
+
+export type EntityProperty =
+  | keyof Pick<Entity['properties'], 'width' | 'height' | 'color'>
+  | keyof Entity['position'];

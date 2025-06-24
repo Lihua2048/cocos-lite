@@ -12,9 +12,8 @@ export default function Canvas() {
 
   // 使用自定义类型处理数据
   const entities = useSelector((state: RootState) =>
-    state.entities ? Object.values(state.entities) as Entity[] : []
-  );
-
+  state.entities ? Object.values(state.entities) as Entity[] : []
+);
   const rendererRef = useRef<WebGLRenderer | null>(null);
 
   // 获取点击位置的实体（复用点击检测逻辑）

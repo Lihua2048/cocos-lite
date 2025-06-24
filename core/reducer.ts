@@ -1,6 +1,6 @@
 // core/reducer.ts
 
-import { EditorState, EditorAction, Entity } from './types';
+import { EditorState, EditorAction } from "./types";
 
 // 修复：明确定义 reducer 类型
 export function editorReducer(
@@ -13,20 +13,20 @@ export function editorReducer(
   }
 
   switch (action.type) {
-    case 'ADD_ENTITY': {
+    case "ADD_ENTITY": {
       return {
         ...state,
         entities: {
           ...state.entities,
-          [action.payload.id]: action.payload
-        }
+          [action.payload.id]: action.payload,
+        },
       };
     }
 
-    case 'SELECT_ENTITY': {
+    case "SELECT_ENTITY": {
       return {
         ...state,
-        selectedEntityId: action.payload
+        selectedEntityId: action.payload,
       };
     }
 
@@ -47,21 +47,26 @@ export function editorReducer(
             // 确保位置对象被正确合并
             position: {
               ...existingEntity.position,
-              ...(updates.position || {})
-            }
+              ...(updates.position || {}),
+            },
+            properties: {
+              ...existingEntity.properties,
+              ...(updates.properties || {}),
+            },
           },
         },
       };
     }
 
-    case 'REMOVE_ENTITY': {
+    case "REMOVE_ENTITY": {
       const { id } = action.payload;
       const { [id]: _, ...remainingEntities } = state.entities;
 
       return {
         ...state,
         entities: remainingEntities,
-        selectedEntityId: state.selectedEntityId === id ? null : state.selectedEntityId
+        selectedEntityId:
+          state.selectedEntityId === id ? null : state.selectedEntityId,
       };
     }
 
@@ -73,5 +78,5 @@ export function editorReducer(
 // 初始化状态
 const initialState: EditorState = {
   entities: {},
-  selectedEntityId: null
+  selectedEntityId: null,
 };
