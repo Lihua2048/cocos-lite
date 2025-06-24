@@ -1,6 +1,6 @@
 // core/reducer.ts
 
-import { EditorState, EditorAction, EntityState } from './types';
+import { EditorState, EditorAction, Entity } from './types';
 
 // 修复：明确定义 reducer 类型
 export function editorReducer(
@@ -30,21 +30,27 @@ export function editorReducer(
       };
     }
 
-    case 'UPDATE_ENTITY': {
+    case "UPDATE_ENTITY": {
       const { id, updates } = action.payload;
       const existingEntity = state.entities[id];
 
       if (!existingEntity) return state;
 
+      // 合并更新，特别处理位置更新
       return {
         ...state,
         entities: {
           ...state.entities,
           [id]: {
             ...existingEntity,
-            ...updates
-          }
-        }
+            ...updates,
+            // 确保位置对象被正确合并
+            position: {
+              ...existingEntity.position,
+              ...(updates.position || {})
+            }
+          },
+        },
       };
     }
 

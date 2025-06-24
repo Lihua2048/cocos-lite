@@ -1,12 +1,14 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { WebGLRenderer } from "../../../2d/webgl-renderer";
-import { addEntity, removeEntity, selectEntity } from "../../../core/actions";
+import { addEntity, removeEntity, selectEntity, updateEntity } from "../../../core/actions";
 import { RootState, Entity } from "../../../core/types";
 
 export default function Canvas() {
   const dispatch = useDispatch();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [draggingEntityId, setDraggingEntityId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // 使用自定义类型处理数据
   const entities = useSelector((state: RootState) =>
@@ -43,6 +45,51 @@ export default function Canvas() {
     }) || null;
   };
 
+  // 鼠标按下处理（开始拖拽）
+  const handleMouseDown = (event: React.MouseEvent) => {
+    const clickedEntity = getEntityAtPosition(event.clientX, event.clientY);
+
+    if (clickedEntity) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const pixelRatio = window.devicePixelRatio || 1;
+      const clickX = (event.clientX - rect.left) * pixelRatio;
+      const clickY = (event.clientY - rect.top) * pixelRatio;
+
+      // 计算鼠标位置与实体左上角的偏移量
+      setDragOffset({
+        x: clickX - clickedEntity.position.x,
+        y: clickY - clickedEntity.position.y
+      });
+
+      setDraggingEntityId(clickedEntity.id);
+      dispatch(selectEntity(clickedEntity.id));
+    }
+  };
+
+  // 鼠标移动处理（更新位置）
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (!draggingEntityId || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const pixelRatio = window.devicePixelRatio || 1;
+    const newX = (event.clientX - rect.left) * pixelRatio - dragOffset.x;
+    const newY = (event.clientY - rect.top) * pixelRatio - dragOffset.y;
+
+    // 更新实体位置
+    dispatch(updateEntity(draggingEntityId, {
+      position: { x: newX, y: newY }
+    }));
+  };
+
+  // 鼠标松开处理（结束拖拽）
+  const handleMouseUp = () => {
+    setDraggingEntityId(null);
+  };
+
   // 右键选择并删除实体
   const handleContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -55,8 +102,11 @@ export default function Canvas() {
     }
   };
 
-  // 左键点击处理
+  // 左键点击处理（添加实体）
   const handleClick = (event: React.MouseEvent) => {
+    // 如果正在拖拽，不处理点击事件
+    if (draggingEntityId) return;
+
     // 检查是否点击了实体
     const clickedEntity = getEntityAtPosition(event.clientX, event.clientY);
 
@@ -83,7 +133,8 @@ export default function Canvas() {
           width: 100,
           height: 100,
           color: [1.0, 0.0, 0.0, 1.0] as [number, number, number, number]
-        }
+        },
+        components: []
       };
 
       dispatch(addEntity(newEntity));
@@ -136,7 +187,12 @@ export default function Canvas() {
           backgroundColor: "#fff",
           border: "1px solid #ccc",
           display: "block",
+          cursor: draggingEntityId ? "grabbing" : "default" // 添加拖拽光标
         }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp} // 鼠标离开时也结束拖拽
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       />
@@ -149,7 +205,7 @@ export default function Canvas() {
           pointerEvents: "none",
         }}
       >
-        点击添加实体 | 点击实体选中
+        {draggingEntityId ? "拖拽中..." : "点击添加实体 | 点击实体选中 | 拖拽移动实体"}
       </div>
     </div>
   );

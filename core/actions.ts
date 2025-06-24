@@ -5,17 +5,16 @@ import {
   UPDATE_ENTITY
 } from './types';
 
-import { EntityState } from './types';
+import { Entity } from './types';
 
 // 定义action类型
 export type EditorAction =
-  | { type: typeof ADD_ENTITY; payload: EntityState }
+  | { type: typeof ADD_ENTITY; payload: Entity }
   | { type: typeof REMOVE_ENTITY; payload: { id: string } }
   | { type: typeof SELECT_ENTITY; payload: string | null }
-  | { type: typeof UPDATE_ENTITY; payload: { id: string; changes: Partial<EntityState> } };
+  | { type: typeof UPDATE_ENTITY; payload: { id: string; updates: Partial<Entity> } };
 
-// 创建action创建函数
-export const addEntity = (entity: EntityState) => ({
+export const addEntity = (entity: Entity) => ({
   type: ADD_ENTITY,
   payload: entity,
 });
@@ -30,7 +29,7 @@ export const selectEntity = (id: string | null) => ({
   payload: id,
 });
 
-export const updateEntity = (id: string, changes: Partial<EntityState>) => ({
+export const updateEntity = (id: string, updates: Partial<Entity>) => ({
   type: UPDATE_ENTITY,
-  payload: { id, changes },
+  payload: { id, updates },
 });

@@ -3,14 +3,6 @@ export const REMOVE_ENTITY = 'REMOVE_ENTITY';
 export const SELECT_ENTITY = 'SELECT_ENTITY';
 export const UPDATE_ENTITY = 'UPDATE_ENTITY';
 
-// 定义动作类型
-export interface UpdateEntityAction {
-  type: typeof UPDATE_ENTITY;
-  payload: {
-    id: string;
-    changes: Partial<EntityState>;
-  };
-}
 
 // 组件基础类型
 export interface Component {
@@ -28,26 +20,20 @@ export interface Entity {
     height: number;
     color: [number, number, number, number];
   };
-//   components: Component[];
+  components: Component[];
 }
 
-// 定义状态类型
-export interface EntityState {
-  id: string;
-  type: string;
-  position: { x: number; y: number };
-}
 
 export interface EditorState {
-  entities: Record<string, EntityState>;
+  entities: Record<string, Entity>;
   selectedEntityId: string | null;
 }
 
 // 定义 action 类型
 export type EditorAction =
-  | { type: 'ADD_ENTITY'; payload: EntityState }
+  | { type: 'ADD_ENTITY'; payload: Entity }
   | { type: 'SELECT_ENTITY'; payload: string | null }
-  | { type: 'UPDATE_ENTITY'; payload: { id: string; updates: Partial<EntityState> } }
+  | { type: 'UPDATE_ENTITY'; payload: { id: string; updates: Partial<Entity> } }
   | { type: 'REMOVE_ENTITY'; payload: { id: string } };
 
 export interface RootState {
