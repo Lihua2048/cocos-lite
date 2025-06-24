@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { updateEntityProperty } from "../../../core/actions";
-import { EntityProperty, Entity, RootState } from "../../../core/types";
-
+import {
+  updateEntityProperty,
+} from "../../../core/actions";
+import { RootState } from "../../../core/types";
+import { EntityProperty } from "../../../core/types";
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
   const selectedEntityId = useSelector(
@@ -26,11 +28,18 @@ export default function PropertiesPanel() {
   // 当选中实体变化时更新本地状态
   useEffect(() => {
     if (selectedEntity) {
+      const colorArray = selectedEntity.properties.color;
+      const colorTuple: [number, number, number, number] = [
+        colorArray[0] || 0,
+        colorArray[1] || 0,
+        colorArray[2] || 0,
+        colorArray[3] !== undefined ? colorArray[3] : 1,
+      ];
       setEditableProps({
         position: { ...selectedEntity.position },
         width: selectedEntity.properties.width,
         height: selectedEntity.properties.height,
-        color: [...selectedEntity.properties.color],
+        color: colorTuple,
       });
     }
   }, [selectedEntity]);

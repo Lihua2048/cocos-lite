@@ -1,6 +1,7 @@
 // core/reducer.ts
 
-import { EditorState, EditorAction } from "./types";
+import { EditorState } from "./types";
+import { EditorAction } from "./actions";
 
 // 修复：明确定义 reducer 类型
 export function editorReducer(

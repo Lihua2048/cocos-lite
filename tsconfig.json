@@ -6,7 +6,7 @@
       "DOM.Iterable",
       "ES2020"
     ],
-    "allowJs": true,
+    "module": "esnext",      "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -22,7 +22,9 @@
       "jest"
     ]
   },
+
   "include": [
+    "@types/**/*",
     "editor/**/*",
     "core/**/*",
     "test/**/*",

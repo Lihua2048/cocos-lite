@@ -2,7 +2,8 @@ import React, { useRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { WebGLRenderer } from "../../../2d/webgl-renderer";
 import { addEntity, removeEntity, selectEntity, updateEntity } from "../../../core/actions";
-import { RootState, Entity } from "../../../core/types";
+import { Entity } from "../../../core/types";
+import { RootState } from "../../../core/types";
 
 export default function Canvas() {
   const dispatch = useDispatch();

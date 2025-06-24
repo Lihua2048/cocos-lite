@@ -1,18 +1,18 @@
 import {
-  ADD_ENTITY,
-  REMOVE_ENTITY,
-  SELECT_ENTITY,
-  UPDATE_ENTITY
+  Entity,
+  EntityProperty
 } from './types';
 
-import { Entity, EntityProperty } from './types';
+export const ADD_ENTITY = 'ADD_ENTITY';
+export const REMOVE_ENTITY = 'REMOVE_ENTITY';
+export const SELECT_ENTITY = 'SELECT_ENTITY';
+export const UPDATE_ENTITY = 'UPDATE_ENTITY';
 
-// 定义action类型
 export type EditorAction =
-  | { type: typeof ADD_ENTITY; payload: Entity }
-  | { type: typeof REMOVE_ENTITY; payload: { id: string } }
-  | { type: typeof SELECT_ENTITY; payload: string | null }
-  | { type: typeof UPDATE_ENTITY; payload: { id: string; updates: Partial<Entity> } };
+  | { type: 'ADD_ENTITY'; payload: Entity }
+  | { type: 'SELECT_ENTITY'; payload: string | null }
+  | { type: 'UPDATE_ENTITY'; payload: { id: string; updates: Partial<Entity> } }
+  | { type: 'REMOVE_ENTITY'; payload: { id: string } };
 
 export const addEntity = (entity: Entity) => ({
   type: ADD_ENTITY,
