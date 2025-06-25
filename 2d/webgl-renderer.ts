@@ -1,6 +1,6 @@
 import { mat4 } from "gl-matrix";
 import { Entity } from "../core/types";
-import { ResourceManager } from "../core/resources/ResourceManager";
+import ResourceManager from "../core/resources/ResourceManager";
 
 export class WebGLRenderer {
   private gl: WebGLRenderingContext | null = null;
@@ -19,6 +19,11 @@ export class WebGLRenderer {
   private resourceManager = new ResourceManager();
   private uTextureLocation: WebGLUniformLocation | null = null;
   private uUseTextureLocation: WebGLUniformLocation | null = null;
+
+  // 修改构造函数以接受 resourceManager 参数
+  constructor(resourceManager: ResourceManager) {
+    this.resourceManager = resourceManager;
+  }
 
   initialize(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -237,6 +242,22 @@ export class WebGLRenderer {
     this.resourceManager.addTexture(id, image);
     this.loadTexture(url).catch(console.error);
   }
+
+  // 添加创建纹理的方法
+  private createTexture(image: HTMLImageElement): WebGLTexture {
+    const gl = this.gl!;
+    const texture = gl.createTexture()!;
+
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    // 设置纹理参数
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+    return texture;
+  }
   render(entities: Entity[]) {
     if (!this.isInitialized()) {
       console.warn("WebGL resources not initialized");
@@ -258,22 +279,17 @@ export class WebGLRenderer {
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     }
 
-    // 使用着色器程序
-    gl.useProgram(shaderProgram);
-
     // 绑定顶点缓冲区
     gl.bindBuffer(gl.ARRAY_BUFFER, this.entityVertexBuffer);
     const aPositionLocation = gl.getAttribLocation(shaderProgram, "a_position");
     gl.enableVertexAttribArray(aPositionLocation);
     gl.vertexAttribPointer(aPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
-    // 获取画布尺寸
+    // 获取画布尺寸，检查画布尺寸是否变化
     const canvas = this.canvas!;
     const pixelRatio = window.devicePixelRatio || 1;
-    // 检查画布尺寸是否变化
     const currentWidth = canvas.clientWidth * pixelRatio;
     const currentHeight = canvas.clientHeight * pixelRatio;
-
     if (
       currentWidth !== this.lastCanvasSize.width ||
       currentHeight !== this.lastCanvasSize.height
@@ -291,7 +307,8 @@ export class WebGLRenderer {
       this.lastCanvasSize = { width: currentWidth, height: currentHeight };
     }
 
-    // 应用投影矩阵
+    // 激活着色器程序，将投影矩阵传递给gpu
+    gl.useProgram(shaderProgram);
     if (this.uProjectionMatrixLocation) {
       gl.uniformMatrix4fv(
         this.uProjectionMatrixLocation,
@@ -326,7 +343,10 @@ export class WebGLRenderer {
 
       // 设置颜色
       if (this.uColorLocation) {
-        gl.uniform4fv(this.uColorLocation, entity.properties.color || [1, 0, 0, 1]);
+        gl.uniform4fv(
+          this.uColorLocation,
+          entity.properties.color || [1, 0, 0, 1]
+        );
       }
 
       // 如果使用纹理，绑定纹理
@@ -349,15 +369,26 @@ export class WebGLRenderer {
       // 创建实体特定的顶点数据（包含纹理坐标）
       const entityVertices = new Float32Array([
         // 位置坐标    纹理坐标
-        x,         y,          0.0, 0.0,
-        x + width, y,          1.0, 0.0,
-        x,         y + height, 0.0, 1.0,
-        x + width, y + height, 1.0, 1.0,
+        x,
+        y,
+        0.0,
+        0.0,
+        x + width,
+        y,
+        1.0,
+        0.0,
+        x,
+        y + height,
+        0.0,
+        1.0,
+        x + width,
+        y + height,
+        1.0,
+        1.0,
       ]);
 
       // 更新缓冲区数据（不创建新缓冲区）
       gl.bufferData(gl.ARRAY_BUFFER, entityVertices, gl.STATIC_DRAW);
-
 
       // 设置位置属性
       const positionAttributeLocation = gl.getAttribLocation(

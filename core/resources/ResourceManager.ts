@@ -1,4 +1,4 @@
-export class ResourceManager {
+export default class ResourceManager {
   private resources: Map<string, any> = new Map();
   private textures: Map<string, HTMLImageElement> = new Map()
 

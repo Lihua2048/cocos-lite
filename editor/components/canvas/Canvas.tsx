@@ -4,8 +4,12 @@ import { WebGLRenderer } from "../../../2d/webgl-renderer";
 import { addEntity, removeEntity, selectEntity, updateEntity } from "../../../core/actions";
 import { Entity } from "../../../core/types";
 import { RootState } from "../../../core/types";
+import  ResourceManager  from "../../../core/resources/ResourceManager";
 
-export default function Canvas() {
+interface CanvasProps {
+  resourceManager: ResourceManager;
+}
+const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
   const dispatch = useDispatch();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [draggingEntityId, setDraggingEntityId] = useState<string | null>(null);
@@ -151,7 +155,7 @@ export default function Canvas() {
     canvas.width = canvas.clientWidth * pixelRatio;
     canvas.height = canvas.clientHeight * pixelRatio;
 
-    const renderer = new WebGLRenderer();
+    const renderer = new WebGLRenderer(resourceManager);
     renderer.initialize(canvas);
     rendererRef.current = renderer;
 
@@ -168,7 +172,7 @@ export default function Canvas() {
       cancelAnimationFrame(animationId);
       rendererRef.current?.cleanup();
     };
-  }, [entities]);
+  }, [entities,resourceManager]);
 
   return (
     <div
@@ -210,3 +214,5 @@ export default function Canvas() {
     </div>
   );
 }
+
+export default Canvas;

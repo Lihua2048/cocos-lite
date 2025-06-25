@@ -1,12 +1,25 @@
-import React, { useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Button } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { addTexture } from '../../../core/actions';
+import React, { useRef, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Image,
+  Button,
+  Modal,
+  TouchableOpacity,
+} from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import { addTexture } from "../../../core/actions";
+import { TextureResource } from "../../../core/types";
 
 export default function ResourceManagerPanel() {
   const dispatch = useDispatch();
   const textures = useSelector((state: any) => state.textures);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewTexture, setPreviewTexture] = useState<TextureResource | null>(
+    null
+  ); // 添加预览状态
 
   const handleUpload = () => {
     fileInputRef.current?.click();
@@ -28,6 +41,16 @@ export default function ResourceManagerPanel() {
     }
   };
 
+  // 添加预览处理函数
+  const handlePreview = (texture: TextureResource) => {
+    setPreviewTexture(texture);
+  };
+
+  // 关闭预览
+  const closePreview = () => {
+    setPreviewTexture(null);
+  };
+
   return (
     <View style={styles.container}>
       <Text>资源管理</Text>
@@ -35,7 +58,7 @@ export default function ResourceManagerPanel() {
       <input
         type="file"
         ref={fileInputRef}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
         accept="image/*"
         onChange={handleFileChange}
       />
@@ -44,12 +67,35 @@ export default function ResourceManagerPanel() {
         data={textures}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.textureItem}>
-            <Image source={{ uri: item.url }} style={styles.textureImage} />
-            <Text>{item.name}</Text>
-          </View>
+          <TouchableOpacity onPress={() => handlePreview(item)}>
+            {" "}
+            {/* 添加点击事件 */}
+            <View style={styles.textureItem}>
+              <Image source={{ uri: item.url }} style={styles.textureImage} />
+              <Text>{item.name}</Text>
+            </View>
+          </TouchableOpacity>
         )}
       />
+      {/* 预览模态框 */}
+      <Modal
+        visible={!!previewTexture}
+        transparent={true}
+        onRequestClose={closePreview}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity style={styles.closeButton} onPress={closePreview}>
+            <Text style={styles.closeButtonText}>关闭</Text>
+          </TouchableOpacity>
+          {previewTexture && (
+            <Image
+              source={{ uri: previewTexture.url }}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -57,20 +103,41 @@ export default function ResourceManagerPanel() {
 const styles = StyleSheet.create({
   container: {
     height: 150,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     marginTop: 10,
   },
   textureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 5,
   },
   textureImage: {
     width: 50,
     height: 50,
     marginRight: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 5,
+  },
+  closeButtonText: {
+    color: "black",
+  },
+  previewImage: {
+    width: "80%",
+    height: "80%",
   },
 });
