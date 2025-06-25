@@ -22,7 +22,7 @@ export default function App() {
           <PropertiesPanel />
         </View>
         <EntityListPane />
-        <ResourceManagerPanel />
+        <ResourceManagerPanel resourceManager={resourceManager.current} />
       </View>
     </Provider>
   );

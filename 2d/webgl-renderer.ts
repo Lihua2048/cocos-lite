@@ -352,12 +352,19 @@ export class WebGLRenderer {
       // 如果使用纹理，绑定纹理
       if (useTexture && entity.properties.texture) {
         const textureId = entity.properties.texture;
-        const texture = this.textureCache.get(textureId);
+        const textureImage = this.resourceManager.getTexture(textureId);
+        if (textureImage) {
+        let texture = this.textureCache.get(textureId);
 
-        if (texture) {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, texture);
+        // 如果缓存中没有，创建新纹理
+        if (!texture) {
+          texture = this.createTexture(textureImage);
+          this.textureCache.set(textureId, texture);
         }
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+      }
       }
 
       // 根据实体位置和尺寸生成顶点数据

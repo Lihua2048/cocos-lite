@@ -12,8 +12,14 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { addTexture } from "../../../core/actions";
 import { TextureResource } from "../../../core/types";
+import ResourceManager  from "../../../core/resources/ResourceManager";
+interface ResourceManagerPanelProps {
+  resourceManager: ResourceManager;
+}
 
-export default function ResourceManagerPanel() {
+export default function ResourceManagerPanel({
+  resourceManager
+}: ResourceManagerPanelProps) {
   const dispatch = useDispatch();
   const textures = useSelector((state: any) => state.textures);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,6 +40,11 @@ export default function ResourceManagerPanel() {
         const id = `texture-${Date.now()}`;
         const name = file.name;
         const url = e.target?.result as string;
+
+        // 添加到资源管理器
+        const image = new window.Image();
+        image.src = url;
+        resourceManager.addTexture(id, image);
 
         dispatch(addTexture({ id, name, url }));
       };
