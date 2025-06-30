@@ -200,8 +200,14 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
       const entities: Record<string, Entity> = state.entities;
       const animations = state.animations;
 
-      // 关键帧插值函数，兼容 position.x/y
-      function interpolateKeyframes(keyframes: any[], t: number): number | undefined {
+      // 多属性关键帧插值
+      function lerp(a: number, b: number, t: number) {
+        return a * (1 - t) + b * t;
+      }
+      function lerpColor(a: [number, number, number, number], b: [number, number, number, number], t: number): [number, number, number, number] {
+        return [0, 1, 2, 3].map(i => lerp(a[i], b[i], t)) as [number, number, number, number];
+      }
+      function interpolateFrame(keyframes: any[], t: number) {
         if (!keyframes || keyframes.length === 0) return undefined;
         let prev = keyframes[0];
         let next = keyframes[keyframes.length - 1];
@@ -212,9 +218,19 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
             break;
           }
         }
-        if (prev === next) return prev.value;
+        if (prev === next) return prev;
         const ratio = (t - prev.time) / (next.time - prev.time);
-        return prev.value * (1 - ratio) + next.value * ratio;
+        return {
+          time: t,
+          position: {
+            x: lerp(prev.position.x, next.position.x, ratio),
+            y: lerp(prev.position.y, next.position.y, ratio)
+          },
+          width: lerp(prev.width, next.width, ratio),
+          height: lerp(prev.height, next.height, ratio),
+          color: lerpColor(prev.color, next.color, ratio),
+          texture: ratio < 0.5 ? prev.texture : next.texture
+        };
       }
 
       Object.values(entities).forEach((entity: Entity) => {
@@ -235,19 +251,22 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
           const safeTime = shouldStop ? maxTime : newTime;
           const nextTime = shouldStop ? (isLoop ? 0 : 0) : safeTime;
           const nextPlaying = shouldStop ? isLoop : true;
-          if (anim && (anim.propertyName === 'position.x' || anim.propertyName === 'position.y')) {
-            // 插值当前帧的值
-            const value = interpolateKeyframes(anim.keyframes, safeTime);
-            if (value !== undefined) {
+          if (anim && Array.isArray(anim.keyframes) && anim.keyframes.length > 0) {
+            const frame = interpolateFrame(anim.keyframes, safeTime);
+            if (frame) {
               dispatch(updateEntity(entity.id, {
                 animation: {
                   ...entity.animation,
                   currentTime: nextTime,
                   playing: nextPlaying
                 },
-                position: {
-                  ...entity.position,
-                  ...(anim.propertyName === 'position.x' ? { x: value } : { y: value })
+                position: frame.position,
+                properties: {
+                  ...entity.properties,
+                  width: frame.width,
+                  height: frame.height,
+                  color: frame.color,
+                  texture: frame.texture
                 }
               }));
             }

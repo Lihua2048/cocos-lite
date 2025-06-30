@@ -51,9 +51,18 @@ export type EditorActionType =
   | "STOP_ANIMATION"
   | "SAVE_ANIMATION";
 
+// 支持多属性关键帧动画
+export interface AnimationKeyframe {
+  time: number;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+  color: [number, number, number, number];
+  texture: string;
+}
 export interface Animation {
-  propertyName: string;
-  keyframes: { time: number; value: number }[];
+  propertyName: string; // 兼容旧逻辑，可忽略
+  keyframes: AnimationKeyframe[];
 }
 
 export interface EntityAnimation {

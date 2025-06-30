@@ -7,7 +7,11 @@ import { saveAnimation } from '../../../core/actions';
 
 interface Keyframe {
   time: number;
-  value: number;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+  color: [number, number, number, number];
+  texture: string;
 }
 
 export default function KeyframeEditor({
@@ -17,8 +21,22 @@ export default function KeyframeEditor({
 }) {
 
   const [keyframes, setKeyframes] = useState<Keyframe[]>([
-    { time: 0, value: 0 },
-    { time: 1, value: 100 }
+    {
+      time: 0,
+      position: { x: 0, y: 0 },
+      width: 100,
+      height: 100,
+      color: [1, 0, 0, 1],
+      texture: ''
+    },
+    {
+      time: 1,
+      position: { x: 100, y: 100 },
+      width: 100,
+      height: 100,
+      color: [1, 0, 0, 1],
+      texture: ''
+    }
   ]);
   const [animationName, setAnimationName] = useState('');
   const dispatch = useDispatch();
@@ -43,20 +61,37 @@ export default function KeyframeEditor({
   };
 
   const addKeyframe = () => {
-    // 新关键帧的 time 默认等于最后一帧 time + 1
-    const lastTime = keyframes.length > 0 ? keyframes[keyframes.length - 1].time : 0;
+    // 新关键帧的 time 默认等于最后一帧 time + 1，其他属性复制上一帧
+    const last = keyframes.length > 0 ? keyframes[keyframes.length - 1] : undefined;
     setKeyframes([
       ...keyframes,
-      {
-        time: lastTime + 1,
-        value: 0
-      }
+      last
+        ? {
+            ...last,
+            time: last.time + 1
+          }
+        : {
+            time: 0,
+            position: { x: 0, y: 0 },
+            width: 100,
+            height: 100,
+            color: [1, 0, 0, 1],
+            texture: ''
+          }
     ]);
   };
 
-  const updateKeyframe = (index: number, field: keyof Keyframe, value: number) => {
+  // 支持嵌套属性的更新
+  const updateKeyframe = (index: number, field: keyof Keyframe | string, value: any) => {
     const updated = [...keyframes];
-    updated[index][field] = value;
+    if (field.startsWith('position.')) {
+      const axis = field.split('.')[1];
+      updated[index].position = { ...updated[index].position, [axis]: value };
+    } else if (field === 'color') {
+      updated[index].color = value;
+    } else {
+      (updated[index] as any)[field] = value;
+    }
     setKeyframes(updated);
   };
 
@@ -64,7 +99,7 @@ export default function KeyframeEditor({
     <View style={{ padding: 10 }}>
       <Text>{propertyName} 动画关键帧编辑</Text>
       {keyframes.map((frame, index) => (
-        <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+        <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
           <Text>时间:</Text>
           <TextInput
             style={{ borderWidth: 1, width: 50, marginHorizontal: 4 }}
@@ -72,12 +107,53 @@ export default function KeyframeEditor({
             onChangeText={(text) => updateKeyframe(index, 'time', parseFloat(text))}
             keyboardType="numeric"
           />
-          <Text>值:</Text>
+          <Text> x:</Text>
           <TextInput
-            style={{ borderWidth: 1, width: 50, marginHorizontal: 4 }}
-            value={frame.value.toString()}
-            onChangeText={(text) => updateKeyframe(index, 'value', parseFloat(text))}
+            style={{ borderWidth: 1, width: 40, marginHorizontal: 2 }}
+            value={frame.position.x.toString()}
+            onChangeText={text => updateKeyframe(index, 'position.x', parseFloat(text))}
             keyboardType="numeric"
+          />
+          <Text> y:</Text>
+          <TextInput
+            style={{ borderWidth: 1, width: 40, marginHorizontal: 2 }}
+            value={frame.position.y.toString()}
+            onChangeText={text => updateKeyframe(index, 'position.y', parseFloat(text))}
+            keyboardType="numeric"
+          />
+          <Text> width:</Text>
+          <TextInput
+            style={{ borderWidth: 1, width: 40, marginHorizontal: 2 }}
+            value={frame.width.toString()}
+            onChangeText={text => updateKeyframe(index, 'width', parseFloat(text))}
+            keyboardType="numeric"
+          />
+          <Text> height:</Text>
+          <TextInput
+            style={{ borderWidth: 1, width: 40, marginHorizontal: 2 }}
+            value={frame.height.toString()}
+            onChangeText={text => updateKeyframe(index, 'height', parseFloat(text))}
+            keyboardType="numeric"
+          />
+          <Text> color:</Text>
+          {frame.color.map((c, ci) => (
+            <TextInput
+              key={ci}
+              style={{ borderWidth: 1, width: 30, marginHorizontal: 1 }}
+              value={c.toString()}
+              onChangeText={text => {
+                const newColor = [...frame.color] as [number, number, number, number];
+                newColor[ci] = parseFloat(text);
+                updateKeyframe(index, 'color', newColor);
+              }}
+              keyboardType="numeric"
+            />
+          ))}
+          <Text> texture:</Text>
+          <TextInput
+            style={{ borderWidth: 1, width: 60, marginHorizontal: 2 }}
+            value={frame.texture}
+            onChangeText={text => updateKeyframe(index, 'texture', text)}
           />
         </View>
       ))}
