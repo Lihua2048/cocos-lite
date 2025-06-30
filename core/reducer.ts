@@ -1,4 +1,5 @@
 // core/reducer.ts
+// core/reducer.ts
 
 import { EditorState } from "./types";
 import { EditorAction } from "./actions";
@@ -14,6 +15,16 @@ export function editorReducer(
   }
 
   switch (action.type) {
+    case 'SAVE_ANIMATION': {
+      const { name, propertyName, keyframes } = action.payload;
+      return {
+        ...state,
+        animations: {
+          ...state.animations,
+          [name]: { propertyName, keyframes }
+        }
+      };
+    }
     case "ADD_ENTITY": {
       return {
         ...state,

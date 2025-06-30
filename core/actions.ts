@@ -1,3 +1,8 @@
+// 动画关键帧相关
+export const saveAnimation = (name: string, propertyName: string, keyframes: any[]) => ({
+  type: 'SAVE_ANIMATION',
+  payload: { name, propertyName, keyframes }
+});
 import { Entity, EntityProperty, TextureResource } from "./types";
 
 
@@ -12,6 +17,8 @@ export const PLAY_ANIMATION = 'PLAY_ANIMATION';
 export const PAUSE_ANIMATION = 'PAUSE_ANIMATION';
 export const STOP_ANIMATION = 'STOP_ANIMATION';
 
+
+import { Animation } from './types';
 export type EditorAction =
   | { type: "ADD_ENTITY"; payload: Entity }
   | { type: "SELECT_ENTITY"; payload: string | null }
@@ -21,7 +28,8 @@ export type EditorAction =
   | { type: "UPDATE_ENTITY_TEXTURE"; payload: { entityId: string; textureId: string } }
   | { type: "PLAY_ANIMATION"; payload: { entityId: string; name: string } }
   | { type: "PAUSE_ANIMATION"; payload: { entityId: string } }
-  | { type: "STOP_ANIMATION"; payload: { entityId: string } };
+  | { type: "STOP_ANIMATION"; payload: { entityId: string } }
+  | { type: "SAVE_ANIMATION"; payload: { name: string; propertyName: string; keyframes: Animation['keyframes'] } };
 
 
 export const addEntity = (entity: Entity): EditorAction => ({
@@ -44,33 +52,33 @@ export const updateEntity = (id: string, updates: Partial<Entity>): EditorAction
   payload: { id, updates },
 });
 
+
 export const updateEntityProperty = (
   id: string,
-  property: EntityProperty,
-  value: number | [number, number, number, number] | string // 添加string类型
+  property: EntityProperty | string,
+  value: number | [number, number, number, number] | string
 ) => {
-  if (property === "x" || property === "y") {
+  // 只允许受支持的属性
+  const allowedPosition = ["position.x", "position.y", "x", "y"];
+  const allowedProperties = ["width", "height", "color", "texture"];
+  if (typeof property === 'string' && allowedPosition.includes(property)) {
+    // 支持 position.x/y
+    const axis = property.endsWith('.x') ? 'x' : property.endsWith('.y') ? 'y' : property;
     return updateEntity(id, {
       position: {
-        [property]: value as number,
+        [axis]: value as number,
       },
     } as Partial<Entity>);
-  } else if (property === "texture") {
-    // 处理纹理ID（字符串）
+  } else if (typeof property === 'string' && allowedProperties.includes(property)) {
+    // 支持 width/height/color/texture
     return updateEntity(id, {
       properties: {
-        [property]: value as string,
+        [property]: value,
       },
     } as Partial<Entity>);
   } else {
-    // 其他属性（width, height, color）
-    const propertiesUpdate: Partial<Entity> = {
-      [property]: value,
-    };
-
-    return updateEntity(id, {
-      properties: propertiesUpdate,
-    } as Partial<Entity>);
+    // 不支持的属性直接忽略
+    return { type: "IGNORE_UPDATE_ENTITY_PROPERTY" } as any;
   }
 };
 

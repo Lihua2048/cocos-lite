@@ -24,6 +24,7 @@ const styles = StyleSheet.create({
   },
 });
 import { useDispatch, useSelector } from "react-redux";
+import { useStore } from "react-redux";
 import { WebGLRenderer } from "../../../core/2d/webgl-renderer";
 import { addEntity, removeEntity, selectEntity, updateEntity } from "../../../core/actions";
 import { Entity } from "../../../core/types";
@@ -39,8 +40,9 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
   const [draggingEntityId, setDraggingEntityId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // 使用对象结构，保证与 PropertiesPanel 取法一致
-  const entities = useSelector((state: RootState) => state.entities);
+  // 只在初始渲染时获取，后续每帧用 store.getState()
+  const store = useStore<RootState>();
+  const animations = useSelector((state: RootState) => state.animations);
   const rendererRef = useRef<WebGLRenderer | null>(null);
 
   // 获取点击位置的实体（复用点击检测逻辑）
@@ -53,8 +55,9 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     const clickX = (clientX - rect.left) * pixelRatio;
     const clickY = (clientY - rect.top) * pixelRatio;
 
-    // 查找点击位置的实体（遍历对象的值）
-    return Object.values(entities).find(entity => {
+    // 每次都用最新 entities
+    const entities: Record<string, Entity> = store.getState().entities;
+    return Object.values(entities).find((entity: Entity) => {
       const { position, properties } = entity;
       const left = position.x;
       const right = position.x + properties.width;
@@ -185,9 +188,111 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     renderer.initialize(canvas);
     rendererRef.current = renderer;
 
+    // 记录上一帧时间戳
+    let lastTimestamp = performance.now();
     const renderLoop = () => {
+      const now = performance.now();
+      const delta = (now - lastTimestamp) / 1000; // 秒
+      lastTimestamp = now;
+
+      // 每帧获取最新 entities
+      const state = store.getState();
+      const entities: Record<string, Entity> = state.entities;
+      const animations = state.animations;
+
+      // 关键帧插值函数，兼容 position.x/y
+      function interpolateKeyframes(keyframes: any[], t: number): number | undefined {
+        if (!keyframes || keyframes.length === 0) return undefined;
+        let prev = keyframes[0];
+        let next = keyframes[keyframes.length - 1];
+        for (let i = 0; i < keyframes.length - 1; i++) {
+          if (t >= keyframes[i].time && t <= keyframes[i + 1].time) {
+            prev = keyframes[i];
+            next = keyframes[i + 1];
+            break;
+          }
+        }
+        if (prev === next) return prev.value;
+        const ratio = (t - prev.time) / (next.time - prev.time);
+        return prev.value * (1 - ratio) + next.value * ratio;
+      }
+
+      Object.values(entities).forEach((entity: Entity) => {
+        if (entity.animation && entity.animation.playing && entity.animation.currentAnimation) {
+          const animName = entity.animation.currentAnimation;
+          const anim = animations[animName];
+          const newTime = entity.animation.currentTime + delta;
+          let shouldStop = false;
+          let maxTime: number = newTime;
+          if (anim && Array.isArray(anim.keyframes) && anim.keyframes.length > 0) {
+            maxTime = anim.keyframes[anim.keyframes.length - 1].time;
+            if (newTime >= maxTime) {
+              shouldStop = true;
+            }
+          }
+          const safeTime = shouldStop ? maxTime : newTime;
+          const nextTime = shouldStop ? 0 : safeTime;
+          if (anim && (anim.propertyName === 'position.x' || anim.propertyName === 'position.y')) {
+            // 插值当前帧的值
+            const value = interpolateKeyframes(anim.keyframes, safeTime);
+            if (value !== undefined) {
+              dispatch(updateEntity(entity.id, {
+                animation: {
+                  ...entity.animation,
+                  currentTime: nextTime,
+                  playing: !shouldStop
+                },
+                position: {
+                  ...entity.position,
+                  ...(anim.propertyName === 'position.x' ? { x: value } : { y: value })
+                }
+              }));
+            }
+          } else {
+            // 只推进时间
+            dispatch(updateEntity(entity.id, {
+              animation: {
+                ...entity.animation,
+                currentTime: nextTime,
+                playing: !shouldStop
+              }
+            }));
+          }
+        }
+      });
+
       if (rendererRef.current) {
-        rendererRef.current.render(Object.values(entities));
+    // 关键帧插值函数，兼容 position.x/y
+    function interpolateKeyframes(keyframes: any[], t: number): number | undefined {
+      if (!keyframes || keyframes.length === 0) return undefined;
+      let prev = keyframes[0];
+      let next = keyframes[keyframes.length - 1];
+      for (let i = 0; i < keyframes.length - 1; i++) {
+        if (t >= keyframes[i].time && t <= keyframes[i + 1].time) {
+          prev = keyframes[i];
+          next = keyframes[i + 1];
+          break;
+        }
+      }
+      if (prev === next) return prev.value;
+      const ratio = (t - prev.time) / (next.time - prev.time);
+      return prev.value * (1 - ratio) + next.value * ratio;
+    }
+        // 构建 entityAnimationState: { [entityId]: { currentAnimation, currentTime } }
+        const entityAnimationState: Record<string, { currentAnimation?: string; currentTime: number }> = {};
+        Object.values(entities).forEach(entity => {
+          if (entity.animation) {
+            entityAnimationState[entity.id] = {
+              currentAnimation: entity.animation.currentAnimation,
+              currentTime: entity.animation.currentTime
+            };
+          }
+        });
+        rendererRef.current.render(
+          Object.values(entities),
+          animations,
+          entityAnimationState
+        );
       }
       requestAnimationFrame(renderLoop);
     };
@@ -198,7 +303,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
       cancelAnimationFrame(animationId);
       rendererRef.current?.cleanup();
     };
-  }, [entities,resourceManager]);
+  }, [resourceManager]);
   const styles = StyleSheet.create({
     root: {
       position: "relative",

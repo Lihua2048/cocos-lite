@@ -42,6 +42,7 @@ export type TextureResource = string | {
 };
 
 // 添加动画相关action类型
+
 export type EditorActionType =
   | "ADD_ENTITY"
   | "SELECT_ENTITY"
@@ -51,7 +52,13 @@ export type EditorActionType =
   | "UPDATE_ENTITY_TEXTURE"
   | "PLAY_ANIMATION"
   | "PAUSE_ANIMATION"
-  | "STOP_ANIMATION";
+  | "STOP_ANIMATION"
+  | "SAVE_ANIMATION";
+
+export interface Animation {
+  propertyName: string;
+  keyframes: { time: number; value: number }[];
+}
 
 export interface EntityAnimation {
   playing: boolean;

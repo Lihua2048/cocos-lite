@@ -1,5 +1,6 @@
 import { mat4 } from "gl-matrix";
 import { Entity } from "../types";
+import { EditorState, Animation } from "../types";
 import ResourceManager from "../resources/ResourceManager";
 import { SceneManager } from "../scene/SceneManager";
 
@@ -259,7 +260,8 @@ export class WebGLRenderer {
 
     return texture;
   }
-  render(entities: Entity[]) {
+  // 新增参数 animations, currentTimes
+  render(entities: Entity[], animations?: Record<string, Animation>, entityAnimationState?: Record<string, { currentAnimation?: string; currentTime: number }>) {
     if (!this.isInitialized()) {
       console.warn("WebGL resources not initialized");
       return;
@@ -331,108 +333,110 @@ export class WebGLRenderer {
     }
 
     entities.forEach((entity) => {
-      // 安全检查
       if (!entity || !entity.position || !entity.properties) {
         console.warn("Invalid entity:", entity);
         return;
       }
-      const useTexture = !!entity.properties.texture;
+      // 动画插值部分
+      let x = entity.position.x || 0;
+      let y = entity.position.y || 0;
+      let width = entity.properties.width || 50;
+      let height = entity.properties.height || 50;
+      let color = entity.properties.color || [1, 0, 0, 1];
 
-      // 设置是否使用纹理
+      // 如果有动画状态和动画数据，做插值
+      if (entityAnimationState && animations && entity.id in entityAnimationState) {
+        const animState = entityAnimationState[entity.id];
+        const animName = animState.currentAnimation;
+        const t = animState.currentTime;
+        if (animName && animations[animName]) {
+          const anim = animations[animName];
+          // 针对 propertyName 匹配插值
+          if (anim.propertyName === 'position') {
+            const px = interpolateKeyframes(anim.keyframes, t, 'x');
+            const py = interpolateKeyframes(anim.keyframes, t, 'y');
+            if (px !== undefined) x = px;
+            if (py !== undefined) y = py;
+          } else if (anim.propertyName === 'color') {
+            const c0 = interpolateKeyframes(anim.keyframes, t, 0);
+            const c1 = interpolateKeyframes(anim.keyframes, t, 1);
+            const c2 = interpolateKeyframes(anim.keyframes, t, 2);
+            const c3 = interpolateKeyframes(anim.keyframes, t, 3);
+            color = [c0 ?? color[0], c1 ?? color[1], c2 ?? color[2], c3 ?? color[3]];
+          } else if (anim.propertyName === 'width') {
+            const w = interpolateKeyframes(anim.keyframes, t);
+            if (w !== undefined) width = w;
+          } else if (anim.propertyName === 'height') {
+            const h = interpolateKeyframes(anim.keyframes, t);
+            if (h !== undefined) height = h;
+          }
+        }
+      }
+
+      const useTexture = !!entity.properties.texture;
       if (this.uUseTextureLocation) {
         gl.uniform1i(this.uUseTextureLocation, useTexture ? 1 : 0);
       }
-
-      // 设置颜色
       if (this.uColorLocation) {
-        gl.uniform4fv(
-          this.uColorLocation,
-          entity.properties.color || [1, 0, 0, 1]
-        );
+        gl.uniform4fv(this.uColorLocation, color);
       }
-
-      // 如果使用纹理，绑定纹理
       if (useTexture && entity.properties.texture) {
         const textureId = entity.properties.texture;
         const textureImage = this.resourceManager.getTexture(textureId);
         if (textureImage) {
           let texture = this.textureCache.get(textureId);
-
-          // 如果缓存中没有，创建新纹理
           if (!texture) {
             texture = this.createTexture(textureImage);
             this.textureCache.set(textureId, texture);
           }
-
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, texture);
         }
       }
-
-      // 根据实体位置和尺寸生成顶点数据
-      const x = entity.position.x || 0;
-      const y = entity.position.y || 0;
-      const width = entity.properties.width || 50;
-      const height = entity.properties.height || 50;
-
       // 创建实体特定的顶点数据（包含纹理坐标）
       const entityVertices = new Float32Array([
-        // 位置坐标    纹理坐标
-        x,
-        y,
-        0.0,
-        0.0,
-        x + width,
-        y,
-        1.0,
-        0.0,
-        x,
-        y + height,
-        0.0,
-        1.0,
-        x + width,
-        y + height,
-        1.0,
-        1.0,
+        x, y, 0.0, 0.0,
+        x + width, y, 1.0, 0.0,
+        x, y + height, 0.0, 1.0,
+        x + width, y + height, 1.0, 1.0,
       ]);
-
-      // 更新缓冲区数据（不创建新缓冲区）
       gl.bufferData(gl.ARRAY_BUFFER, entityVertices, gl.STATIC_DRAW);
-
-      // 设置位置属性
-      const positionAttributeLocation = gl.getAttribLocation(
-        shaderProgram,
-        "a_position"
-      );
+      const positionAttributeLocation = gl.getAttribLocation(shaderProgram, "a_position");
       gl.enableVertexAttribArray(positionAttributeLocation);
-      gl.vertexAttribPointer(
-        positionAttributeLocation,
-        2, // 每个顶点有2个分量 (x, y)
-        gl.FLOAT,
-        false,
-        4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点4个浮点数 (x, y, u, v)
-        0 // 从数组开头开始
-      );
-
-      // 设置纹理坐标属性
-      const texCoordAttributeLocation = gl.getAttribLocation(
-        shaderProgram,
-        "a_texCoord"
-      );
+      gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT, 0);
+      const texCoordAttributeLocation = gl.getAttribLocation(shaderProgram, "a_texCoord");
       if (texCoordAttributeLocation !== -1) {
         gl.enableVertexAttribArray(texCoordAttributeLocation);
-        gl.vertexAttribPointer(
-          texCoordAttributeLocation,
-          2, // 每个纹理坐标有2个分量 (u, v)
-          gl.FLOAT,
-          false,
-          4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点4个浮点数 (x, y, u, v)
-          2 * Float32Array.BYTES_PER_ELEMENT // 从第3个元素开始
-        );
+        gl.vertexAttribPointer(texCoordAttributeLocation, 2, gl.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT, 2 * Float32Array.BYTES_PER_ELEMENT);
       }
-
-      // 执行绘制调用
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     });
+
+    // 关键帧插值函数
+    function interpolateKeyframes(keyframes: any[], t: number, key?: string | number): any {
+      if (!keyframes || keyframes.length === 0) return undefined;
+      // 支持多维属性（如 position.x/y 或 color[0-3]）
+      // key 为 string 时，keyframes 结构应为 {time, value: {x, y}}，为 number 时为数组
+      let prev = keyframes[0];
+      let next = keyframes[keyframes.length - 1];
+      for (let i = 0; i < keyframes.length - 1; i++) {
+        if (t >= keyframes[i].time && t <= keyframes[i + 1].time) {
+          prev = keyframes[i];
+          next = keyframes[i + 1];
+          break;
+        }
+      }
+      if (prev === next) {
+        if (key !== undefined && prev.value && typeof prev.value === 'object') {
+          return prev.value[key];
+        }
+        return prev.value;
+      }
+      const ratio = (t - prev.time) / (next.time - prev.time);
+      if (key !== undefined && prev.value && next.value && typeof prev.value === 'object') {
+        return prev.value[key] * (1 - ratio) + next.value[key] * ratio;
+      }
+      return prev.value * (1 - ratio) + next.value * ratio;
+    }
   }
 }
