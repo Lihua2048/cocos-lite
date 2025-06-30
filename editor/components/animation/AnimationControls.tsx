@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Button } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,6 +9,8 @@ import { updateEntityProperty } from '../../../core/actions';
 
 export default function AnimationControls({ entityId, loop: loopProp }: { entityId: string; loop?: boolean }) {
   const animations = useSelector((state: RootState) => state.animations) || {};
+  const entities = useSelector((state: RootState) => state.entities);
+  const entity = entities[entityId];
   const [selectedAnim, setSelectedAnim] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef(false);
@@ -16,6 +18,19 @@ export default function AnimationControls({ entityId, loop: loopProp }: { entity
   const [loop, setLoop] = useState(loopProp ?? false);
   const rafRef = useRef<number | null>(null);
   const dispatch = useDispatch();
+
+  // 自动同步按钮状态：未循环且动画播放完毕时自动变为停止
+  useEffect(() => {
+    if (entity && entity.animation) {
+      if (!entity.animation.playing) {
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+      } else {
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+      }
+    }
+  }, [entity && entity.animation ? entity.animation.playing : undefined]);
 
   const handlePlay = () => {
     if (!selectedAnim || !animations[selectedAnim] || !entityId) return;

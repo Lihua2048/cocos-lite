@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button } from 'react-native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { saveAnimation } from '../../../core/actions';
+import { RootState, TextureResource, Entity } from '../../../core/types';
+import { Picker } from '@react-native-picker/picker';
 
 interface Keyframe {
   time: number;
@@ -19,7 +21,14 @@ export default function KeyframeEditor({
 }: {
   propertyName: string
 }) {
+  // 获取全局 textures、entities、selectedEntityId
+  const textures = useSelector((state: RootState) => state.textures);
+  const entities = useSelector((state: RootState) => state.entities);
+  const selectedEntityId = useSelector((state: RootState) => state.selectedEntityId);
+  const selectedEntity: Entity | undefined = selectedEntityId ? entities[selectedEntityId] : undefined;
 
+  // 关键帧初始值：如实体有纹理则用实体纹理，否则空
+  const getDefaultTexture = () => selectedEntity?.properties.texture || '';
   const [keyframes, setKeyframes] = useState<Keyframe[]>([
     {
       time: 0,
@@ -27,7 +36,7 @@ export default function KeyframeEditor({
       width: 100,
       height: 100,
       color: [1, 0, 0, 1],
-      texture: ''
+      texture: getDefaultTexture()
     },
     {
       time: 1,
@@ -35,7 +44,7 @@ export default function KeyframeEditor({
       width: 100,
       height: 100,
       color: [1, 0, 0, 1],
-      texture: ''
+      texture: getDefaultTexture()
     }
   ]);
   const [animationName, setAnimationName] = useState('');
@@ -43,7 +52,37 @@ export default function KeyframeEditor({
 
   // 保存动画到全局，自动排序和过滤非法帧
   const handleSave = () => {
-    if (!animationName || keyframes.length < 2) return;
+    if (keyframes.length < 2) return;
+    // 动画名自动补全 test+数字
+    let name = animationName;
+    // 获取所有动画名，找 test+数字 最大值
+    let allNames: string[] = [];
+    if ((window as any).store?.getState) {
+      allNames = Object.keys((window as any).store.getState().animations || {});
+    } else {
+      // 兼容 redux hooks
+      try {
+        // @ts-ignore
+        const reduxState = require('react-redux').useStore?.()?.getState?.();
+        if (reduxState && reduxState.animations) {
+          allNames = Object.keys(reduxState.animations);
+        }
+      } catch {}
+    }
+    let maxNum = 0;
+    allNames.forEach(n => {
+      const m = n.match(/^test(\d+)$/);
+      if (m) maxNum = Math.max(maxNum, parseInt(m[1]));
+    });
+    if (!name) {
+      name = `test${maxNum + 1}`;
+    } else if (/^test\d+$/.test(name)) {
+      // 如果当前输入名也是 test+数字，自动递进
+      const curNum = parseInt(name.replace('test', ''));
+      if (curNum <= maxNum) {
+        name = `test${maxNum + 1}`;
+      }
+    }
     // 排序并过滤非法帧，并自动修正 time 非递增问题
     let sorted = keyframes
       .filter(f => typeof f.time === 'number' && !isNaN(f.time))
@@ -56,19 +95,20 @@ export default function KeyframeEditor({
       }
       return f;
     });
-    dispatch(saveAnimation(animationName, propertyName, sorted));
+    dispatch(saveAnimation(name, propertyName, sorted));
     setAnimationName('');
   };
 
   const addKeyframe = () => {
-    // 新关键帧的 time 默认等于最后一帧 time + 1，其他属性复制上一帧
+    // 新关键帧的 time 默认等于最后一帧 time + 1，其他属性复制上一帧，texture优先实体纹理
     const last = keyframes.length > 0 ? keyframes[keyframes.length - 1] : undefined;
     setKeyframes([
       ...keyframes,
       last
         ? {
             ...last,
-            time: last.time + 1
+            time: last.time + 1,
+            texture: last.texture || getDefaultTexture()
           }
         : {
             time: 0,
@@ -76,7 +116,7 @@ export default function KeyframeEditor({
             width: 100,
             height: 100,
             color: [1, 0, 0, 1],
-            texture: ''
+            texture: getDefaultTexture()
           }
     ]);
   };
@@ -150,11 +190,20 @@ export default function KeyframeEditor({
             />
           ))}
           <Text> texture:</Text>
-          <TextInput
-            style={{ borderWidth: 1, width: 60, marginHorizontal: 2 }}
-            value={frame.texture}
-            onChangeText={text => updateKeyframe(index, 'texture', text)}
-          />
+          <Picker
+            selectedValue={frame.texture}
+            style={{ width: 100, marginHorizontal: 2 }}
+            onValueChange={value => updateKeyframe(index, 'texture', value)}
+          >
+            <Picker.Item label="无纹理" value="" />
+            {textures.map((texture: TextureResource) =>
+              typeof texture === 'string' ? (
+                <Picker.Item key={texture} label={texture} value={texture} />
+              ) : (
+                <Picker.Item key={texture.id} label={texture.name} value={texture.id} />
+              )
+            )}
+          </Picker>
         </View>
       ))}
       <Button title="添加关键帧" onPress={addKeyframe} />
