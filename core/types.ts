@@ -23,11 +23,7 @@ export interface Entity {
     texture?: string;
   };
   components: Component[];
-  animation?: {
-    playing: boolean;
-    currentAnimation?: string;  // 改为可选属性
-    currentTime: number;
-  };
+  animation?: EntityAnimation;
 }
 
 export type EntityProperty =
@@ -64,6 +60,7 @@ export interface EntityAnimation {
   playing: boolean;
   currentAnimation?: string;
   currentTime: number;
+  loop?: boolean;
 }
 
 // 添加默认动画状态

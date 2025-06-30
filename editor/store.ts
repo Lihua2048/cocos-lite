@@ -6,7 +6,8 @@ import { EditorAction } from '../core/actions';
 const initialState  = {
   entities: {},
   selectedEntityId: null,
-  textures: []
+  textures: [],
+  animations: {},
 };
 
 export const store = createStore(editorReducer, initialState);

@@ -7,13 +7,13 @@ import { RootState } from '../../../core/types';
 import { updateEntityProperty } from '../../../core/actions';
 
 
-export default function AnimationControls({ entityId }: { entityId: string }) {
+export default function AnimationControls({ entityId, loop: loopProp }: { entityId: string; loop?: boolean }) {
   const animations = useSelector((state: RootState) => state.animations) || {};
   const [selectedAnim, setSelectedAnim] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef(false);
   const [playTime, setPlayTime] = useState(0);
-  const [loop, setLoop] = useState(false);
+  const [loop, setLoop] = useState(loopProp ?? false);
   const rafRef = useRef<number | null>(null);
   const dispatch = useDispatch();
 
@@ -22,8 +22,8 @@ export default function AnimationControls({ entityId }: { entityId: string }) {
     setIsPlaying(true);
     isPlayingRef.current = true;
     setPlayTime(0);
-    // 只派发播放动画动作，动画插值和 position.x 更新交给 Canvas 渲染主循环
-    dispatch({ type: 'PLAY_ANIMATION', payload: { entityId, name: selectedAnim } });
+    // 只派发播放动画动作，带上 loop 状态
+    dispatch({ type: 'PLAY_ANIMATION', payload: { entityId, name: selectedAnim, loop } });
   };
 
   // 线性插值

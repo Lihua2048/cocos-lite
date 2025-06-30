@@ -230,8 +230,11 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
               shouldStop = true;
             }
           }
+          // 循环播放逻辑
+          const isLoop = !!entity.animation.loop;
           const safeTime = shouldStop ? maxTime : newTime;
-          const nextTime = shouldStop ? 0 : safeTime;
+          const nextTime = shouldStop ? (isLoop ? 0 : 0) : safeTime;
+          const nextPlaying = shouldStop ? isLoop : true;
           if (anim && (anim.propertyName === 'position.x' || anim.propertyName === 'position.y')) {
             // 插值当前帧的值
             const value = interpolateKeyframes(anim.keyframes, safeTime);
@@ -240,7 +243,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
                 animation: {
                   ...entity.animation,
                   currentTime: nextTime,
-                  playing: !shouldStop
+                  playing: nextPlaying
                 },
                 position: {
                   ...entity.position,
@@ -254,7 +257,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
               animation: {
                 ...entity.animation,
                 currentTime: nextTime,
-                playing: !shouldStop
+                playing: nextPlaying
               }
             }));
           }

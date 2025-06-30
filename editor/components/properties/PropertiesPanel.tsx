@@ -141,17 +141,11 @@ export default function PropertiesPanel() {
       </View>
 
       <View style={styles.propertyGroup}>
-        <KeyframeEditor
-          entityId={selectedEntity.id}
-          propertyName="position.x"
-        />
+        <KeyframeEditor propertyName="position.x" />
       </View>
 
       <View style={styles.propertyGroup}>
-        <AnimationControls
-          entityId={selectedEntity.id}
-          availableAnimations={["idle", "walk", "run"]}
-        />
+        <AnimationControls entityId={selectedEntity.id} />
       </View>
       {selectedEntity.animation && (
         <Text>当前动画: {selectedEntity.animation.currentAnimation}</Text>

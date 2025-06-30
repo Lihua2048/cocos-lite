@@ -26,7 +26,7 @@ export type EditorAction =
   | { type: "REMOVE_ENTITY"; payload: { id: string } }
   | { type: "ADD_TEXTURE"; payload: string }
   | { type: "UPDATE_ENTITY_TEXTURE"; payload: { entityId: string; textureId: string } }
-  | { type: "PLAY_ANIMATION"; payload: { entityId: string; name: string } }
+  | { type: "PLAY_ANIMATION"; payload: { entityId: string; name: string; loop?: boolean } }
   | { type: "PAUSE_ANIMATION"; payload: { entityId: string } }
   | { type: "STOP_ANIMATION"; payload: { entityId: string } }
   | { type: "SAVE_ANIMATION"; payload: { name: string; propertyName: string; keyframes: Animation['keyframes'] } };
@@ -93,9 +93,9 @@ export const updateEntityTexture = (entityId: string, textureId: string) => ({
 });
 
 
-export const playAnimation = (entityId: string, name: string): EditorAction => ({
+export const playAnimation = (entityId: string, name: string, loop?: boolean): EditorAction => ({
   type: "PLAY_ANIMATION" as const,
-  payload: { entityId, name }
+  payload: { entityId, name, ...(typeof loop === 'boolean' ? { loop } : {}) }
 });
 
 export const pauseAnimation = (entityId: string): EditorAction => ({

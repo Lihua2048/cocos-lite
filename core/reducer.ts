@@ -107,6 +107,8 @@ export function editorReducer(
 
     case "PLAY_ANIMATION": {
       const { entityId, name } = action.payload;
+      // 兼容 AnimationControls 传 loop，未传时默认 false
+      const loop = typeof action.payload.loop === 'boolean' ? action.payload.loop : false;
       const entity = state.entities[entityId];
 
       if (!entity) {
@@ -125,6 +127,7 @@ export function editorReducer(
               playing: true,
               currentAnimation: name,
               currentTime: entity.animation?.currentTime || 0,
+              loop: loop === true,
             },
           },
         },
