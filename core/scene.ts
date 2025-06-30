@@ -1,36 +1,81 @@
-import { Entity } from './entity';
+import { Entity } from "./entity";
+import { AnimationSystem } from "./animation/AnimationSystem";
+import { Animation } from "./animation/Animation";
+import { AnimationCurve } from "./animation/AnimationCurve";
+import { SceneManager } from "./scene/SceneManager";
 
+export const sceneManager = new SceneManager();
 
 export class Scene {
-    private entities: Entity[] = [];
+  private entities: Entity[] = [];
 
-    addEntity (entity: Entity): void {
-        this.entities.push(entity);
+  constructor(public animationSystem?: AnimationSystem) {
+    if (!animationSystem) {
+      // 使用默认的动画系统
+      this.animationSystem = new AnimationSystem();
+    } else {
+      this.animationSystem = animationSystem;
     }
-    
-    removeEntity(id: string) {
-    this.entities = this.entities.filter(e => e.id !== id);
+
+    this.registerDefaultAnimations();
   }
 
-    getEntities (): Entity[] {
-        return [...this.entities];
+  private registerDefaultAnimations() {
+    const animation = new Animation();
+    const curve = new AnimationCurve();
+    
+    // 添加关键帧动画
+    curve.addKeyframe(0, 0);
+    curve.addKeyframe(1, 1);
+    curve.addKeyframe(2, 0);
+    
+    animation.duration = 2;
+    animation.addAnimationCurve(curve);
+    
+    if (this.animationSystem) {
+      this.animationSystem.registerAnimation('walk', animation);
     }
+  }
 
-    update (deltaTime: number): void {
-        this.entities.forEach((entity) => entity.update(deltaTime));
+  playAnimation(entityId: string, name: string) {
+    if (this.animationSystem) {
+      this.animationSystem.playAnimation(entityId, name);
     }
+  }
 
-    render (): void {
-        // 模拟WebGL渲染 - 使用日志函数替代 console.log
-        this.logRender(`Rendering ${this.entities.length} entities`);
+  pauseAnimation(entityId: string) {
+    if (this.animationSystem) {
+      this.animationSystem.pauseAnimation(entityId);
     }
+  }
+  getEntityById(id: string): Entity | undefined {
+    return this.entities.find(entity => entity.id === id);
+  }
 
-    private logRender (message: string): void {
-        // 可以在这里实现自定义的日志逻辑
-        // 在生产环境中可以禁用或重定向到其他地方
-        if (process.env.NODE_ENV !== 'production') {
-            // eslint-disable-next-line no-console
-            console.log(message);
-        }
+  addEntity(entity: Entity): void {
+    this.entities.push(entity);
+  }
+
+  removeEntity(id: string) {
+    this.entities = this.entities.filter((e) => e.id !== id);
+  }
+
+  getEntities(): Entity[] {
+    return [...this.entities];
+  }
+
+
+  update(deltaTime: number): void {
+    this.entities.forEach((entity) => entity.update(deltaTime));
+  }
+
+  render(): void {
+    this.logRender(`Rendering ${this.entities.length} entities`);
+  }
+
+  private logRender(message: string): void {
+    if (process.env.NODE_ENV !== "production") {
+      console.log(message);
     }
+  }
 }

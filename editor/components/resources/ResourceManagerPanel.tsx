@@ -79,7 +79,6 @@ export default function ResourceManagerPanel({
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => handlePreview(item)}>
-            {" "}
             {/* 添加点击事件 */}
             <View style={styles.textureItem}>
               <Image source={{ uri: item.url }} style={styles.textureImage} />
@@ -100,7 +99,7 @@ export default function ResourceManagerPanel({
           </TouchableOpacity>
           {previewTexture && (
             <Image
-              source={{ uri: previewTexture.url }}
+              source={{ uri: typeof previewTexture === 'string' ? previewTexture : previewTexture.url }}
               style={styles.previewImage}
               resizeMode="contain"
             />

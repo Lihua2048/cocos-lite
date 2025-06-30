@@ -1,8 +1,14 @@
-import { Scene } from '../scene';
+import { Scene } from "../scene";
+import { Entity } from "../types";
 
-export class SceneManager {
+export  class SceneManager {
   private scenes: Map<string, Scene> = new Map();
   private activeScene: Scene | null = null;
+  private entities: Map<string, Entity> = new Map();
+
+  getEntityById(id: string): Entity | null {
+    return this.entities.get(id) || null;
+  }
 
   addScene(name: string, scene: Scene) {
     this.scenes.set(name, scene);

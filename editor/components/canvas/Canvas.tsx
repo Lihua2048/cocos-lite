@@ -1,6 +1,30 @@
 import React, { useRef, useEffect, useState } from "react";
+import { View, Text, StyleSheet, TextInput } from "react-native";
+
+const styles = StyleSheet.create({
+  root: {
+    position: "relative",
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+  },
+  tips: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    pointerEvents: "none",
+  },
+  tipsText: {
+    color: "#000",
+    fontSize: 14,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+});
 import { useDispatch, useSelector } from "react-redux";
-import { WebGLRenderer } from "../../../2d/webgl-renderer";
+import { WebGLRenderer } from "../../../core/2d/webgl-renderer";
 import { addEntity, removeEntity, selectEntity, updateEntity } from "../../../core/actions";
 import { Entity } from "../../../core/types";
 import { RootState } from "../../../core/types";
@@ -15,10 +39,8 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
   const [draggingEntityId, setDraggingEntityId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // 使用自定义类型处理数据
-  const entities = useSelector((state: RootState) =>
-  state.entities ? Object.values(state.entities) as Entity[] : []
-);
+  // 使用对象结构，保证与 PropertiesPanel 取法一致
+  const entities = useSelector((state: RootState) => state.entities);
   const rendererRef = useRef<WebGLRenderer | null>(null);
 
   // 获取点击位置的实体（复用点击检测逻辑）
@@ -31,8 +53,8 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     const clickX = (clientX - rect.left) * pixelRatio;
     const clickY = (clientY - rect.top) * pixelRatio;
 
-    // 查找点击位置的实体
-    return entities.find(entity => {
+    // 查找点击位置的实体（遍历对象的值）
+    return Object.values(entities).find(entity => {
       const { position, properties } = entity;
       const left = position.x;
       const right = position.x + properties.width;
@@ -69,7 +91,13 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
       });
 
       setDraggingEntityId(clickedEntity.id);
-      dispatch(selectEntity(clickedEntity.id));
+      // 修复：无论拖拽还是点击都应派发 selectEntity
+      if (clickedEntity.id !== draggingEntityId) {
+        dispatch(selectEntity(clickedEntity.id));
+      }
+    } else {
+      // 点击空白处时取消选中
+      dispatch(selectEntity(null));
     }
   };
 
@@ -114,10 +142,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     // 检查是否点击了实体
     const clickedEntity = getEntityAtPosition(event.clientX, event.clientY);
 
-    if (clickedEntity) {
-      // 点击实体 - 打开属性面板
-      dispatch(selectEntity(clickedEntity.id));
-    } else {
+    if (!clickedEntity) {
       // 点击空白处 - 添加新实体
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -143,6 +168,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
 
       dispatch(addEntity(newEntity));
     }
+    // 不再在 handleClick 里派发 selectEntity，统一在 handleMouseDown 处理
   };
 
   // 初始化WebGL渲染器
@@ -161,7 +187,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
 
     const renderLoop = () => {
       if (rendererRef.current) {
-        rendererRef.current.render(entities);
+        rendererRef.current.render(Object.values(entities));
       }
       requestAnimationFrame(renderLoop);
     };
@@ -173,16 +199,31 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
       rendererRef.current?.cleanup();
     };
   }, [entities,resourceManager]);
-
+  const styles = StyleSheet.create({
+    root: {
+      position: "relative",
+      width: "100%",
+      height: "100%",
+      overflow: "hidden",
+    },
+    tips: {
+      position: "absolute",
+      top: 10,
+      left: 10,
+      pointerEvents: "none",
+    },
+    tipsText: {
+      color: "#000",
+      fontSize: 14,
+      backgroundColor: "rgba(255,255,255,0.7)",
+      borderRadius: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+  });
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        overflow: "hidden",
-      }}
-    >
+    <View style={styles.root}>
+      {/* 画布区域 */}
       <canvas
         ref={canvasRef}
         style={{
@@ -190,28 +231,22 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
           height: "100%",
           backgroundColor: "#fff",
           border: "1px solid #ccc",
-          display: "block",
-          cursor: draggingEntityId ? "grabbing" : "default" // 添加拖拽光标
+          cursor: draggingEntityId ? "grabbing" : "default"
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp} // 鼠标离开时也结束拖拽
+        onMouseLeave={handleMouseUp}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       />
-      <div
-        style={{
-          position: "absolute",
-          top: 10,
-          left: 10,
-          color: "#000",
-          pointerEvents: "none",
-        }}
-      >
-        {draggingEntityId ? "拖拽中..." : "点击添加实体 | 点击实体选中 | 拖拽移动实体"}
-      </div>
-    </div>
+      {/* 操作提示 */}
+      <View style={styles.tips}>
+        <Text style={styles.tipsText}>
+          {draggingEntityId ? "拖拽中..." : "点击添加实体 | 点击实体选中 | 拖拽移动实体"}
+        </Text>
+      </View>
+    </View>
   );
 }
 

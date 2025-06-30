@@ -6,7 +6,8 @@
       "DOM.Iterable",
       "ES2020"
     ],
-    "module": "esnext",      "allowJs": true,
+    "module": "esnext",
+    "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -29,7 +30,7 @@
     "core/**/*",
     "test/**/*",
     "App.tsx"
-  ],
+, "physics/PhysicsSystem.ts"  ],
   "exclude": [
     "node_modules"
   ],

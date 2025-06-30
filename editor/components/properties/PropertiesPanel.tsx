@@ -2,9 +2,14 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput } from "react-native";
 import { Picker } from "@react-native-picker/picker"; // 修复Picker导入问题
 import { useSelector, useDispatch } from "react-redux";
-import { updateEntityProperty, updateEntityTexture} from "../../../core/actions";
+import {
+  updateEntityProperty,
+  updateEntityTexture,
+} from "../../../core/actions";
 import { RootState, TextureResource } from "../../../core/types"; // 导入TextureResource类型
 import { EntityProperty } from "../../../core/types";
+import KeyframeEditor from "../animation/KeyframeEditor";
+import AnimationControls from "../animation/AnimationControls";
 
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
@@ -110,27 +115,47 @@ export default function PropertiesPanel() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>实体属性</Text>
-      <Text>纹理:</Text>
-      <Picker
-        selectedValue={selectedEntity.properties.texture || ""}
-        onValueChange={(value: string) => {
-          dispatch(updateEntityTexture(selectedEntity.id, value));
-        }}
-      >
-        <Picker.Item label="无纹理" value="" />
-        {textures.map(
-          (
-            texture: TextureResource // 使用TextureResource类型
-          ) => (
-            <Picker.Item
-              key={texture.id}
-              label={texture.name}
-              value={texture.id}
-            />
-          )
-        )}
-      </Picker>
+      <View style={styles.propertyGroup}>
+        <Text style={styles.title}>实体属性</Text>
+        <Text>纹理:</Text>
+        <Picker
+          selectedValue={selectedEntity.properties.texture || ""}
+          onValueChange={(value: string) => {
+            dispatch(updateEntityTexture(selectedEntity.id, value));
+          }}
+        >
+          <Picker.Item label="无纹理" value="" />
+          {textures.map((texture: TextureResource) =>
+            // 添加类型守卫检查
+            typeof texture === "string" ? (
+              <Picker.Item key={texture} label={texture} value={texture} />
+            ) : (
+              <Picker.Item
+                key={texture.id}
+                label={texture.name}
+                value={texture.id}
+              />
+            )
+          )}
+        </Picker>
+      </View>
+
+      <View style={styles.propertyGroup}>
+        <KeyframeEditor
+          entityId={selectedEntity.id}
+          propertyName="position.x"
+        />
+      </View>
+
+      <View style={styles.propertyGroup}>
+        <AnimationControls
+          entityId={selectedEntity.id}
+          availableAnimations={["idle", "walk", "run"]}
+        />
+      </View>
+      {selectedEntity.animation && (
+        <Text>当前动画: {selectedEntity.animation.currentAnimation}</Text>
+      )}
 
       <View style={styles.propertyGroup}>
         <Text style={styles.subtitle}>位置</Text>

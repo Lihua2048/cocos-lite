@@ -1,6 +1,7 @@
 import { mat4 } from "gl-matrix";
-import { Entity } from "../core/types";
-import ResourceManager from "../core/resources/ResourceManager";
+import { Entity } from "../types";
+import ResourceManager from "../resources/ResourceManager";
+import { SceneManager } from "../scene/SceneManager";
 
 export class WebGLRenderer {
   private gl: WebGLRenderingContext | null = null;
@@ -290,6 +291,7 @@ export class WebGLRenderer {
     const pixelRatio = window.devicePixelRatio || 1;
     const currentWidth = canvas.clientWidth * pixelRatio;
     const currentHeight = canvas.clientHeight * pixelRatio;
+
     if (
       currentWidth !== this.lastCanvasSize.width ||
       currentHeight !== this.lastCanvasSize.height
@@ -313,7 +315,7 @@ export class WebGLRenderer {
       gl.uniformMatrix4fv(
         this.uProjectionMatrixLocation,
         false,
-        this.projectionMatrix
+        this.projectionMatrix //相当于transform
       );
     }
 
@@ -354,17 +356,17 @@ export class WebGLRenderer {
         const textureId = entity.properties.texture;
         const textureImage = this.resourceManager.getTexture(textureId);
         if (textureImage) {
-        let texture = this.textureCache.get(textureId);
+          let texture = this.textureCache.get(textureId);
 
-        // 如果缓存中没有，创建新纹理
-        if (!texture) {
-          texture = this.createTexture(textureImage);
-          this.textureCache.set(textureId, texture);
+          // 如果缓存中没有，创建新纹理
+          if (!texture) {
+            texture = this.createTexture(textureImage);
+            this.textureCache.set(textureId, texture);
+          }
+
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, texture);
         }
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-      }
       }
 
       // 根据实体位置和尺寸生成顶点数据

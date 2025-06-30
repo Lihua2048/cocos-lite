@@ -1,39 +1,46 @@
 import { Entity, EntityProperty, TextureResource } from "./types";
 
+
 export const ADD_ENTITY = "ADD_ENTITY";
 export const REMOVE_ENTITY = "REMOVE_ENTITY";
 export const SELECT_ENTITY = "SELECT_ENTITY";
 export const UPDATE_ENTITY = "UPDATE_ENTITY";
 export const ADD_TEXTURE = "ADD_TEXTURE";
+// 动画相关action类型
+export const UPDATE_ENTITY_TEXTURE = "UPDATE_ENTITY_TEXTURE";
+export const PLAY_ANIMATION = 'PLAY_ANIMATION';
+export const PAUSE_ANIMATION = 'PAUSE_ANIMATION';
+export const STOP_ANIMATION = 'STOP_ANIMATION';
 
 export type EditorAction =
   | { type: "ADD_ENTITY"; payload: Entity }
   | { type: "SELECT_ENTITY"; payload: string | null }
   | { type: "UPDATE_ENTITY"; payload: { id: string; updates: Partial<Entity> } }
   | { type: "REMOVE_ENTITY"; payload: { id: string } }
-  | { type: "ADD_TEXTURE"; payload: TextureResource }
-  | {
-      type: "UPDATE_ENTITY_TEXTURE";
-      payload: { entityId: string; textureId: string };
-    };
+  | { type: "ADD_TEXTURE"; payload: string }
+  | { type: "UPDATE_ENTITY_TEXTURE"; payload: { entityId: string; textureId: string } }
+  | { type: "PLAY_ANIMATION"; payload: { entityId: string; name: string } }
+  | { type: "PAUSE_ANIMATION"; payload: { entityId: string } }
+  | { type: "STOP_ANIMATION"; payload: { entityId: string } };
 
-export const addEntity = (entity: Entity) => ({
-  type: ADD_ENTITY,
+
+export const addEntity = (entity: Entity): EditorAction => ({
+  type: "ADD_ENTITY" as const,
   payload: entity,
 });
 
-export const removeEntity = (id: string) => ({
-  type: REMOVE_ENTITY,
+export const removeEntity = (id: string): EditorAction => ({
+  type: "REMOVE_ENTITY" as const,
   payload: { id },
 });
 
-export const selectEntity = (id: string | null) => ({
-  type: SELECT_ENTITY,
+export const selectEntity = (id: string | null): EditorAction => ({
+  type: "SELECT_ENTITY" as const,
   payload: id,
 });
 
-export const updateEntity = (id: string, updates: Partial<Entity>) => ({
-  type: UPDATE_ENTITY,
+export const updateEntity = (id: string, updates: Partial<Entity>): EditorAction => ({
+  type: "UPDATE_ENTITY" as const,
   payload: { id, updates },
 });
 
@@ -75,4 +82,20 @@ export const addTexture = (texture: TextureResource) => ({
 export const updateEntityTexture = (entityId: string, textureId: string) => ({
   type: "UPDATE_ENTITY_TEXTURE",
   payload: { entityId, textureId },
+});
+
+
+export const playAnimation = (entityId: string, name: string): EditorAction => ({
+  type: "PLAY_ANIMATION" as const,
+  payload: { entityId, name }
+});
+
+export const pauseAnimation = (entityId: string): EditorAction => ({
+  type: "PAUSE_ANIMATION" as const,
+  payload: { entityId }
+});
+
+export const stopAnimation = (entityId: string): EditorAction => ({
+  type: "STOP_ANIMATION" as const,
+  payload: { entityId }
 });

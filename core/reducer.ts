@@ -94,6 +94,77 @@ export function editorReducer(
       };
     }
 
+    case "PLAY_ANIMATION": {
+      const { entityId, name } = action.payload;
+      const entity = state.entities[entityId];
+
+      if (!entity) {
+        console.error(`Entity ${entityId} not found`);
+        return state;
+      }
+
+      return {
+        ...state,
+        entities: {
+          ...state.entities,
+          [entityId]: {
+            ...entity,
+            animation: {
+              ...(entity.animation || {}),
+              playing: true,
+              currentAnimation: name,
+              currentTime: entity.animation?.currentTime || 0,
+            },
+          },
+        },
+      };
+    }
+
+    // 修改PAUSE_ANIMATION case
+    case "PAUSE_ANIMATION": {
+      const { entityId } = action.payload;
+      const entity = state.entities[entityId];
+
+      if (!entity || !entity.animation) return state;
+
+      return {
+        ...state,
+        entities: {
+          ...state.entities,
+          [entityId]: {
+            ...entity,
+            animation: {
+              ...entity.animation,
+              playing: false,
+            },
+          },
+        },
+      };
+    }
+
+    // 修改STOP_ANIMATION case
+    case "STOP_ANIMATION": {
+      const { entityId } = action.payload;
+      const entity = state.entities[entityId];
+
+      if (!entity) return state;
+
+      return {
+        ...state,
+        entities: {
+          ...state.entities,
+          [entityId]: {
+            ...entity,
+            animation: {
+              ...entity.animation,
+              playing: false,
+              currentTime: 0,
+            },
+          },
+        },
+      };
+    }
+
     default:
       return state;
   }
@@ -104,4 +175,5 @@ const initialState: EditorState = {
   entities: {},
   selectedEntityId: null,
   textures: [],
+  animations: {},
 };

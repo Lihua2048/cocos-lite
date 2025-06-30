@@ -2,10 +2,10 @@ import React, { useRef } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Provider } from "react-redux";
 import { store } from "./editor/store";
+
 import Canvas from "./editor/components/canvas/Canvas";
 import PropertiesPanel from "./editor/components/properties/PropertiesPanel";
 import EntityListPane from "./editor/components/resources/EntityListPanel";
-import Button from "./ui/Button";
 import ResourceManager from "./core/resources/ResourceManager";
 import ResourceManagerPanel from "./editor/components/resources/ResourceManagerPanel";
 
@@ -17,17 +17,21 @@ export default function App() {
       <View style={styles.container}>
         <Text style={styles.title}>简易Cocos Creator</Text>
         <View style={styles.editorLayout}>
-          {/* 现在 TypeScript 能识别 resourceManager prop */}
-          <Canvas resourceManager={resourceManager.current} />
-          <PropertiesPanel />
+          <View style={styles.leftPanel}>
+            <EntityListPane />
+            <ResourceManagerPanel resourceManager={resourceManager.current} />
+          </View>
+          <View style={styles.centerPanel}>
+            <Canvas resourceManager={resourceManager.current} />
+          </View>
+          <View style={styles.rightPanel}>
+            <PropertiesPanel />
+          </View>
         </View>
-        <EntityListPane />
-        <ResourceManagerPanel resourceManager={resourceManager.current} />
       </View>
     </Provider>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -43,5 +47,20 @@ const styles = StyleSheet.create({
   editorLayout: {
     flex: 1,
     flexDirection: "row",
+  },
+  leftPanel: {
+    width: 200,
+    backgroundColor: "#eee",
+    paddingRight: 8,
+  },
+  centerPanel: {
+    flex: 1,
+    backgroundColor: "#fff",
+    marginHorizontal: 8,
+  },
+  rightPanel: {
+    width: 320,
+    backgroundColor: "#fafafa",
+    paddingLeft: 8,
   },
 });
