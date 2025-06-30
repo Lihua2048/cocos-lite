@@ -225,6 +225,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     marginLeft: 10,
+    maxHeight: 800,     // 使用数字像素值代替百分比
+    overflow: "scroll"  // 使用React Native支持的overflow属性
   },
   title: {
     fontSize: 18,
