@@ -29,7 +29,36 @@ export type EditorAction =
   | { type: "PLAY_ANIMATION"; payload: { entityId: string; name: string; loop?: boolean } }
   | { type: "PAUSE_ANIMATION"; payload: { entityId: string } }
   | { type: "STOP_ANIMATION"; payload: { entityId: string } }
-  | { type: "SAVE_ANIMATION"; payload: { name: string; propertyName: string; keyframes: Animation['keyframes'] } };
+  | { type: "SAVE_ANIMATION"; payload: { name: string; propertyName: string; keyframes: Animation['keyframes'] } }
+  // 物理组件相关
+  | { type: "ADD_PHYSICS_COMPONENT"; payload: { entityId: string; component: import("./types").PhysicsComponent } }
+  | { type: "REMOVE_PHYSICS_COMPONENT"; payload: { entityId: string } }
+  | { type: "UPDATE_PHYSICS_COMPONENT"; payload: { entityId: string; updates: Partial<import("./types").PhysicsComponent> } }
+  | { type: "SET_PHYSICS_RUNNING"; payload: boolean };
+
+// 物理运行/暂停
+export const setPhysicsRunning = (running: boolean): EditorAction => ({
+  type: "SET_PHYSICS_RUNNING",
+  payload: running,
+});
+
+// 添加物理组件
+export const addPhysicsComponent = (entityId: string, component: import("./types").PhysicsComponent): EditorAction => ({
+  type: "ADD_PHYSICS_COMPONENT",
+  payload: { entityId, component },
+});
+
+// 移除物理组件
+export const removePhysicsComponent = (entityId: string): EditorAction => ({
+  type: "REMOVE_PHYSICS_COMPONENT",
+  payload: { entityId },
+});
+
+// 更新物理组件
+export const updatePhysicsComponent = (entityId: string, updates: Partial<import("./types").PhysicsComponent>): EditorAction => ({
+  type: "UPDATE_PHYSICS_COMPONENT",
+  payload: { entityId, updates },
+});
 
 
 export const addEntity = (entity: Entity): EditorAction => ({

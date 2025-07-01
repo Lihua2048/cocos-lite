@@ -5,8 +5,16 @@ import { EditorState } from "./types";
 import { EditorAction } from "./actions";
 
 // 修复：明确定义 reducer 类型
+const initialState: EditorState = {
+  entities: {},
+  selectedEntityId: null,
+  textures: [],
+  animations: {},
+  physicsRunning: true,
+};
+
 export function editorReducer(
-  state: EditorState | undefined = initialState,
+  state: EditorState = initialState,
   action: EditorAction
 ): EditorState {
   // 处理状态初始化
@@ -15,6 +23,12 @@ export function editorReducer(
   }
 
   switch (action.type) {
+    case 'SET_PHYSICS_RUNNING': {
+      return {
+        ...state,
+        physicsRunning: action.payload,
+      };
+    }
     case 'SAVE_ANIMATION': {
       const { name, propertyName, keyframes } = action.payload;
       return {
@@ -45,10 +59,8 @@ export function editorReducer(
     case "UPDATE_ENTITY": {
       const { id, updates } = action.payload;
       const existingEntity = state.entities[id];
-
       if (!existingEntity) return state;
-
-      // 合并更新，特别处理位置更新
+      // 合并更新，特别处理 position/properties/components
       return {
         ...state,
         entities: {
@@ -56,7 +68,6 @@ export function editorReducer(
           [id]: {
             ...existingEntity,
             ...updates,
-            // 确保位置对象被正确合并
             position: {
               ...existingEntity.position,
               ...(updates.position || {}),
@@ -65,6 +76,64 @@ export function editorReducer(
               ...existingEntity.properties,
               ...(updates.properties || {}),
             },
+            components: updates.components
+              ? updates.components
+              : existingEntity.components,
+          },
+        },
+      };
+    }
+
+    // 物理组件相关
+    case "ADD_PHYSICS_COMPONENT": {
+      const { entityId, component } = action.payload;
+      const entity = state.entities[entityId];
+      if (!entity) return state;
+      // 若已存在物理组件则替换，否则添加
+      const newComponents = [
+        ...entity.components.filter(c => c.type !== 'physics'),
+        component,
+      ];
+      return {
+        ...state,
+        entities: {
+          ...state.entities,
+          [entityId]: {
+            ...entity,
+            components: newComponents,
+          },
+        },
+      };
+    }
+    case "REMOVE_PHYSICS_COMPONENT": {
+      const { entityId } = action.payload;
+      const entity = state.entities[entityId];
+      if (!entity) return state;
+      return {
+        ...state,
+        entities: {
+          ...state.entities,
+          [entityId]: {
+            ...entity,
+            components: entity.components.filter(c => c.type !== 'physics'),
+          },
+        },
+      };
+    }
+    case "UPDATE_PHYSICS_COMPONENT": {
+      const { entityId, updates } = action.payload;
+      const entity = state.entities[entityId];
+      if (!entity) return state;
+      const newComponents = entity.components.map(c =>
+        c.type === 'physics' ? { ...c, ...updates } : c
+      );
+      return {
+        ...state,
+        entities: {
+          ...state.entities,
+          [entityId]: {
+            ...entity,
+            components: newComponents,
           },
         },
       };
@@ -184,10 +253,4 @@ export function editorReducer(
   }
 }
 
-// 初始化状态
-const initialState: EditorState = {
-  entities: {},
-  selectedEntityId: null,
-  textures: [],
-  animations: {},
-};
+// （已上移并合并 initialState，避免重复声明）

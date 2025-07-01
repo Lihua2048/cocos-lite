@@ -26,7 +26,10 @@ const styles = StyleSheet.create({
 import { useDispatch, useSelector } from "react-redux";
 import { useStore } from "react-redux";
 import { WebGLRenderer } from "../../../core/2d/webgl-renderer";
+import { physicsWorld } from '../../../core/physics';
+import planck from 'planck-js';
 import { addEntity, removeEntity, selectEntity, updateEntity } from "../../../core/actions";
+import { PhysicsComponent } from '../../../core/types';
 import { Entity } from "../../../core/types";
 import { RootState } from "../../../core/types";
 import  ResourceManager  from "../../../core/resources/ResourceManager";
@@ -114,10 +117,24 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     const newX = (event.clientX - rect.left) * pixelRatio - dragOffset.x;
     const newY = (event.clientY - rect.top) * pixelRatio - dragOffset.y;
 
-    // 更新实体位置
-    dispatch(updateEntity(draggingEntityId, {
-      position: { x: newX, y: newY }
-    }));
+    // 判断实体是否有物理组件
+    const entities: Record<string, Entity> = store.getState().entities;
+    const entity = entities[draggingEntityId];
+    const hasPhysics = entity && entity.components.some(c => c.type === 'physics');
+    if (hasPhysics) {
+      // 有物理组件，直接设置物理体位置
+      const body = (physicsWorld as any).bodies?.get?.(draggingEntityId);
+      if (body) {
+        body.setPosition({ x: newX, y: newY });
+        body.setLinearVelocity(planck.Vec2(0, 0)); // 拖拽时速度清零，防止弹飞
+        body.setAwake(true);
+      }
+    } else {
+      // 无物理组件，直接更新实体属性
+      dispatch(updateEntity(draggingEntityId, {
+        position: { x: newX, y: newY }
+      }));
+    }
   };
 
   // 鼠标松开处理（结束拖拽）
@@ -176,6 +193,10 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
 
   // 初始化WebGL渲染器
   useEffect(() => {
+    // 确保物理世界只初始化一次
+    if (!physicsWorld.isInitialized()) {
+      physicsWorld.initialize({ x: 0, y: 10 });
+    }
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -199,6 +220,64 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
       const state = store.getState();
       const entities: Record<string, Entity> = state.entities;
       const animations = state.animations;
+
+      // 恢复物理主循环
+      // 仅在物理运行状态下 step
+      const physicsRunning = store.getState().physicsRunning;
+      if (physicsRunning) {
+        physicsWorld.step(delta);
+      }
+      // 自动创建/同步/销毁物理体
+      const existingBodyIds = new Set(Array.from((physicsWorld as any).bodies?.keys?.() || []));
+      Object.values(entities).forEach((entity: Entity) => {
+        const physicsComp = entity.components.find(c => c.type === 'physics') as PhysicsComponent | undefined;
+        const hasBody = (physicsWorld as any).bodies?.has?.(entity.id);
+        // 仅有物理组件的实体才参与物理体创建/同步/销毁
+        // --- 物理属性变更检测与物理体重建 ---
+        // 用于缓存上一次的物理属性
+        if (!(window as any)._entityPhysicsCache) (window as any)._entityPhysicsCache = {};
+        const cache = (window as any)._entityPhysicsCache;
+        const keyProps = physicsComp ? [physicsComp.bodyType, physicsComp.density, physicsComp.friction, physicsComp.restitution, physicsComp.fixedRotation].join(',') : '';
+        if (physicsComp) {
+          if (!hasBody || cache[entity.id] !== keyProps) {
+            // 属性变更或无物理体时，重建物理体
+            if (hasBody) (physicsWorld as any).destroyBody(entity.id);
+            const safeY = Math.max(entity.position.y, 10);
+            const def: any = {
+              type: physicsComp.bodyType || 'dynamic',
+              position: { x: entity.position.x, y: safeY },
+              angle: entity.properties.angle || 0,
+              fixedRotation: !!physicsComp.fixedRotation
+            };
+            const body = (physicsWorld as any).createBody(def, { id: entity.id });
+            const w = entity.properties.width / 2;
+            const h = entity.properties.height / 2;
+            body.createFixture(planck.Box(w, h), {
+              density: physicsComp.density,
+              friction: physicsComp.friction,
+              restitution: physicsComp.restitution
+            });
+            cache[entity.id] = keyProps;
+          }
+          // 同步物理体到实体
+          const body = (physicsWorld as any).bodies.get(entity.id);
+          if (body) {
+            physicsWorld.syncEntityFromBody(entity, body);
+            dispatch(updateEntity(entity.id, {
+              position: { ...entity.position },
+              properties: { ...entity.properties }
+            }));
+          }
+          existingBodyIds.delete(entity.id);
+        } else if (hasBody) {
+          (physicsWorld as any).destroyBody(entity.id);
+          delete cache[entity.id];
+        }
+      });
+      // 清理已被删除的实体对应的物理体
+      existingBodyIds.forEach(id => {
+        (physicsWorld as any).destroyBody(id);
+      });
 
       // 多属性关键帧插值
       function lerp(a: number, b: number, t: number) {

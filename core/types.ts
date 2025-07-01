@@ -3,13 +3,27 @@ export interface EditorState {
   selectedEntityId: string | null;
   textures: TextureResource[];
   animations: Record<string, Animation>;
+  physicsRunning: boolean; // 是否运行物理模拟
 }
 
 export type RootState = EditorState;
 
 // 组件基础类型
+
+// 通用组件类型
 export interface Component {
   type: string;
+}
+
+// 物理组件类型
+export interface PhysicsComponent extends Component {
+  type: 'physics';
+  bodyType: 'dynamic' | 'static' | 'kinematic';
+  density: number;
+  friction: number;
+  restitution: number;
+  fixedRotation?: boolean;
+  // 可扩展更多物理属性
 }
 
 export interface Entity {
@@ -21,8 +35,9 @@ export interface Entity {
     height: number;
     color: [number, number, number, number];
     texture?: string;
+    angle?: number; // 支持物理旋转
   };
-  components: Component[];
+  components: (Component | PhysicsComponent)[];
   animation?: EntityAnimation;
 }
 

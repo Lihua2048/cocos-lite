@@ -8,6 +8,7 @@ const initialState  = {
   selectedEntityId: null,
   textures: [],
   animations: {},
+  physicsRunning: true,
 };
 
 export const store = createStore(editorReducer, initialState);

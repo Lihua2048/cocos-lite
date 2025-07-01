@@ -1,64 +1,73 @@
-import Box2DFactory from 'box2d-wasm';
 
+
+import planck from 'planck-js';
+
+// 推进物理世界模拟
 type UserData = {
   id: string;
   // 其他需要存储的数据
 };
 
 export class PhysicsWorld {
-  private world: Box2D.b2World | null = null;
-  private bodies: Map<string, Box2D.b2Body> = new Map();
-  private userDataMap: Map<number, UserData> = new Map(); // 按指针存储用户数据
-  private Box2D: typeof Box2D | null = null;
+  isInitialized(): boolean {
+    return !!this.world;
+  }
+  private world: planck.World | null = null;
+  private bodies: Map<string, planck.Body> = new Map();
 
-  async initialize(gravity: { x: number; y: number }): Promise<void> {
-    this.Box2D = await Box2DFactory();
-    this.world = new this.Box2D.b2World(
-      new this.Box2D.b2Vec2(gravity.x, gravity.y)
-    );
+  step(dt: number) {
+    if (!this.world) {
+      console.warn('[PhysicsWorld] step: world not initialized');
+      return;
+    }
+    this.world.step(dt);
   }
 
-  createBody(def: Box2D.b2BodyDef, userData: UserData): Box2D.b2Body {
-    if (!this.world || !this.Box2D) throw new Error('PhysicsWorld not initialized');
 
-    // 创建真正的 Box2D 定义对象
-    const finalDef = new this.Box2D.b2BodyDef();
+// 以上为 PhysicsWorld 正确实现，以下为重复内容，需删除
 
-    // 复制属性
-    if (def.type !== undefined) finalDef.type = def.type;
-    if (def.position) finalDef.position = new this.Box2D.b2Vec2(def.position.x, def.position.y);
-    if (def.angle !== undefined) finalDef.angle = def.angle;
-    // 其他属性...
+  syncEntityFromBody(entity: any, body: planck.Body) {
+    const pos = body.getPosition();
+    entity.position.x = pos.x;
+    entity.position.y = pos.y;
+    if (entity.properties) {
+      entity.properties.angle = body.getAngle();
+    }
+  }
 
-    const body = this.world.CreateBody(finalDef);
+  async initialize(gravity: { x: number; y: number }): Promise<void> {
+    this.world = new planck.World(planck.Vec2(gravity.x, gravity.y));
+    console.log('[PhysicsWorld] initialized with gravity', gravity);
+  }
+
+  createBody(def: any, userData: UserData): planck.Body {
+    if (!this.world) {
+      console.error('[PhysicsWorld] createBody: world not initialized');
+      throw new Error('PhysicsWorld not initialized');
+    }
+    const body = this.world.createBody({
+      type: def.type || 'dynamic',
+      position: planck.Vec2(def.position.x, def.position.y),
+      angle: def.angle || 0,
+      fixedRotation: !!def.fixedRotation
+    });
+    // 可扩展 fixture 创建等
     this.bodies.set(userData.id, body);
-
-    // 使用body指针存储用户数据
-    const pointer = this.getBodyPointer(body);
-    this.userDataMap.set(pointer, userData);
-
+    (body as any).userData = userData;
+    console.log(`[PhysicsWorld] createBody: id=${userData.id}, type=${def.type}, pos=(${def.position?.x},${def.position?.y}), angle=${def.angle}`);
     return body;
   }
 
-  // 获取body指针的方法
-  private getBodyPointer(body: Box2D.b2Body): number {
-    // 使用类型断言访问私有属性
-    return (body as any).ptr;
+  getUserData(body: planck.Body): UserData | undefined {
+    return (body as any).userData;
   }
 
-  // 获取用户数据的方法
-  getUserData(body: Box2D.b2Body): UserData | undefined {
-    const pointer = this.getBodyPointer(body);
-    return this.userDataMap.get(pointer);
-  }
-
-  // 当body被销毁时记得清理userDataMap
   destroyBody(id: string): void {
     const body = this.bodies.get(id);
-    if (body) {
-      const pointer = this.getBodyPointer(body);
-      this.userDataMap.delete(pointer);
+    if (body && this.world) {
+      this.world.destroyBody(body);
       this.bodies.delete(id);
+      console.log(`[PhysicsWorld] destroyBody: id=${id}`);
     }
   }
 }

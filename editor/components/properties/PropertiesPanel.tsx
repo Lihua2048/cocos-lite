@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
+import PhysicsPanel from '../physics/PhysicsPanel';
 import { View, Text, StyleSheet, TextInput } from "react-native";
 import { Picker } from "@react-native-picker/picker"; // 修复Picker导入问题
 import { useSelector, useDispatch } from "react-redux";
 import {
   updateEntityProperty,
   updateEntityTexture,
+  addPhysicsComponent,
+  setPhysicsRunning
 } from "../../../core/actions";
 import { RootState, TextureResource } from "../../../core/types"; // 导入TextureResource类型
 import { EntityProperty } from "../../../core/types";
@@ -13,11 +16,10 @@ import AnimationControls from "../animation/AnimationControls";
 
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
-  const selectedEntityId = useSelector(
-    (state: RootState) => state.selectedEntityId
-  );
+  const selectedEntityId = useSelector((state: RootState) => state.selectedEntityId);
   const entities = useSelector((state: RootState) => state.entities);
   const textures = useSelector((state: RootState) => state.textures); // 添加textures选择器
+  const physicsRunning = useSelector((state: RootState) => state.physicsRunning);
   const selectedEntity =
     selectedEntityId && entities[selectedEntityId]
       ? entities[selectedEntityId]
@@ -113,6 +115,17 @@ export default function PropertiesPanel() {
     );
   }
 
+  // 检查是否有物理组件
+  let physicsComponent: import('../../../core/types').PhysicsComponent | null = null;
+  let hasPhysicsComponent = false;
+  if (selectedEntity) {
+    const found = selectedEntity.components.find(c => c.type === 'physics');
+    if (found) {
+      physicsComponent = found as import('../../../core/types').PhysicsComponent;
+      hasPhysicsComponent = true;
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.propertyGroup}>
@@ -126,7 +139,6 @@ export default function PropertiesPanel() {
         >
           <Picker.Item label="无纹理" value="" />
           {textures.map((texture: TextureResource) =>
-            // 添加类型守卫检查
             typeof texture === "string" ? (
               <Picker.Item key={texture} label={texture} value={texture} />
             ) : (
@@ -138,6 +150,36 @@ export default function PropertiesPanel() {
             )
           )}
         </Picker>
+      </View>
+
+      {/* 物理属性面板/添加按钮 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
+        {hasPhysicsComponent ? (
+          <PhysicsPanel entityId={selectedEntity.id} component={physicsComponent!} />
+        ) : (
+          <button
+            style={{ marginRight: 12, padding: '6px 12px', background: '#eee', border: '1px solid #aaa', borderRadius: 4 }}
+            onClick={() => {
+              dispatch(addPhysicsComponent(selectedEntity.id, {
+                type: 'physics',
+                bodyType: 'dynamic',
+                density: 1,
+                friction: 0.5,
+                restitution: 0.2,
+                fixedRotation: false
+              }));
+            }}
+          >
+            添加物理组件
+          </button>
+        )}
+        {/* 物理运行/暂停按钮 */}
+        <button
+          style={{ padding: '6px 12px', background: physicsRunning ? '#d4f7d4' : '#f7d4d4', border: '1px solid #aaa', borderRadius: 4 }}
+          onClick={() => dispatch(setPhysicsRunning(!physicsRunning))}
+        >
+          {physicsRunning ? '暂停物理' : '运行物理'}
+        </button>
       </View>
 
       <View style={styles.propertyGroup}>
