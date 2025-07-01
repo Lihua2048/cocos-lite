@@ -17,15 +17,29 @@ export default function App() {
       <View style={styles.container}>
         <Text style={styles.title}>简易Cocos Creator</Text>
         <View style={styles.editorLayout}>
-          <View style={styles.leftPanel}>
-            <EntityListPane />
-            <ResourceManagerPanel resourceManager={resourceManager.current} />
-          </View>
-          <View style={styles.centerPanel}>
-            <Canvas resourceManager={resourceManager.current} />
-          </View>
-          <View style={styles.rightPanel}>
-            <PropertiesPanel />
+          {/* 三栏布局：最左侧为组件栏 */}
+          <View style={{ flexDirection: 'row', height: '100%' }}>
+            {/* 组件栏 */}
+            <View style={{ width: 120, backgroundColor: '#f5f5f5', borderRightWidth: 1, borderRightColor: '#ddd' }}>
+              {require('./editor/components/ComponentPalette').default()}
+            </View>
+            {/* 中间主区：画布+底部资源区 */}
+            <View style={{ flex: 1, flexDirection: 'column', minWidth: 0 }}>
+              <View style={styles.centerPanel}>
+                <Canvas resourceManager={resourceManager.current} />
+              </View>
+              <View style={{ flexDirection: 'row', width: '100%', backgroundColor: '#f8f8f8', borderTopWidth: 1, borderTopColor: '#ddd', minHeight: 120 }}>
+                <View style={{ flex: 1 }}>
+                  <EntityListPane />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ResourceManagerPanel resourceManager={resourceManager.current} />
+                </View>
+              </View>
+            </View>
+            <View style={styles.rightPanel}>
+              <PropertiesPanel />
+            </View>
           </View>
         </View>
       </View>
@@ -49,7 +63,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   leftPanel: {
-    width: 200,
+    width: 300,
     backgroundColor: "#eee",
     paddingRight: 8,
   },
@@ -57,6 +71,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     marginHorizontal: 8,
+    width: 1000
   },
   rightPanel: {
     width: 320,

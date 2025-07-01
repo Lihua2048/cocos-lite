@@ -1,33 +1,52 @@
+
 import { mat4 } from "gl-matrix";
 import { Entity } from "../types";
 import { EditorState, Animation } from "../types";
 import ResourceManager from "../resources/ResourceManager";
 import { SceneManager } from "../scene/SceneManager";
+import { SDFTextRenderer, SDFMeta } from "./sdf-font/sdf-text-renderer";
 
 export class WebGLRenderer {
-  private gl: WebGLRenderingContext | null = null;
-  private canvas: HTMLCanvasElement | null = null;
-  private vertexBuffer: WebGLBuffer | null = null;
-  private shaderProgram: WebGLProgram | null = null;
-  // 在类中添加缓存变量
-  private uProjectionMatrixLocation: WebGLUniformLocation | null = null;
-  private uColorLocation: WebGLUniformLocation | null = null;
-  private aPositionLocation: number | null = null;
-  private entityVertexBuffer: WebGLBuffer | null = null;
-  private projectionMatrix: mat4 = mat4.create();
-  private lastCanvasSize = { width: 0, height: 0 };
-  // 资源管理器实例
-  private textureCache: Map<string, WebGLTexture> = new Map();
-  private resourceManager = new ResourceManager();
-  private uTextureLocation: WebGLUniformLocation | null = null;
-  private uUseTextureLocation: WebGLUniformLocation | null = null;
+  private gl: WebGLRenderingContext | null;
+  private canvas: HTMLCanvasElement | null;
+  private vertexBuffer: WebGLBuffer | null;
+  private shaderProgram: WebGLProgram | null;
+  private uProjectionMatrixLocation: WebGLUniformLocation | null;
+  private uColorLocation: WebGLUniformLocation | null;
+  private aPositionLocation: number | null;
+  private entityVertexBuffer: WebGLBuffer | null;
+  private projectionMatrix: mat4;
+  private lastCanvasSize: { width: number; height: number };
+  private textureCache: Map<string, WebGLTexture>;
+  private resourceManager: ResourceManager;
+  private uTextureLocation: WebGLUniformLocation | null;
+  private uUseTextureLocation: WebGLUniformLocation | null;
+  // SDF字体渲染相关
+  private sdfTextRenderer: SDFTextRenderer | null;
+  private sdfFontLoaded: boolean;
 
-  // 修改构造函数以接受 resourceManager 参数
+
+
   constructor(resourceManager: ResourceManager) {
+    this.gl = null;
+    this.canvas = null;
+    this.vertexBuffer = null;
+    this.shaderProgram = null;
+    this.uProjectionMatrixLocation = null;
+    this.uColorLocation = null;
+    this.aPositionLocation = null;
+    this.entityVertexBuffer = null;
+    this.projectionMatrix = mat4.create();
+    this.lastCanvasSize = { width: 0, height: 0 };
+    this.textureCache = new Map();
     this.resourceManager = resourceManager;
+    this.uTextureLocation = null;
+    this.uUseTextureLocation = null;
+    this.sdfTextRenderer = null;
+    this.sdfFontLoaded = false;
   }
 
-  initialize(canvas: HTMLCanvasElement) {
+  async initialize(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const context = canvas.getContext("webgl");
 
@@ -69,6 +88,17 @@ export class WebGLRenderer {
 
       // 创建实体顶点缓冲区
       this.entityVertexBuffer = this.gl.createBuffer();
+    }
+
+    // 加载 SDF 字体元数据和贴图
+    try {
+      const metaResp = await fetch("./core/2d/sdf-font/roboto-msdf.json");
+      const meta: SDFMeta = await metaResp.json();
+      this.sdfTextRenderer = new SDFTextRenderer(this.gl, meta);
+      await this.sdfTextRenderer.loadTexture("./core/2d/sdf-font/roboto-msdf.png");
+      this.sdfFontLoaded = true;
+    } catch (e) {
+      console.warn("SDF字体加载失败", e);
     }
   }
 
@@ -344,6 +374,21 @@ export class WebGLRenderer {
       let height = entity.properties.height || 50;
       let color = entity.properties.color || [1, 0, 0, 1];
 
+      // UI类型：优先使用属性面板设置的 color，否则用类型区分色
+      if (entity.type === 'ui-button' || entity.type === 'ui-input' || entity.type === 'ui-text') {
+        // UIProperties: color 字段为背景色
+        if (entity.properties.backgroundType === 'color' && entity.properties.color) {
+          color = entity.properties.color;
+        } else if (entity.properties.backgroundType === 'image') {
+          color = [1, 1, 1, 1]; // 图片背景时默认白色
+        } else {
+          // fallback
+          if (entity.type === 'ui-button') color = [0.2, 0.5, 1, 1];
+          else if (entity.type === 'ui-input') color = [1, 1, 1, 1];
+          else if (entity.type === 'ui-text') color = [0.9, 0.9, 0.9, 1];
+        }
+      }
+
       // 如果有动画状态和动画数据，做插值
       if (entityAnimationState && animations && entity.id in entityAnimationState) {
         const animState = entityAnimationState[entity.id];
@@ -409,7 +454,31 @@ export class WebGLRenderer {
         gl.enableVertexAttribArray(texCoordAttributeLocation);
         gl.vertexAttribPointer(texCoordAttributeLocation, 2, gl.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT, 2 * Float32Array.BYTES_PER_ELEMENT);
       }
+
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+      // -------- SDF字体渲染：UI组件文字 --------
+      if ((entity.type === 'ui-button' || entity.type === 'ui-input' || entity.type === 'ui-text') && this.sdfTextRenderer && this.sdfFontLoaded) {
+        const text = entity.properties.text || '';
+        if (text) {
+          // 计算文字区域
+          const fontSize = entity.properties.fontSize || 16;
+          const textColor = entity.properties.textColor || [0,0,0,1];
+          const textAlign = entity.properties.textAlign || 'left';
+          // 这里直接调用 SDFTextRenderer 的 drawText（实际渲染逻辑需在 SDFTextRenderer 内实现）
+          this.sdfTextRenderer.drawText(
+            text,
+            x,
+            y + fontSize + 4, // 顶部留边距
+            {
+              fontSize,
+              color: textColor,
+              textAlign,
+              maxWidth: width
+            }
+          );
+        }
+      }
     });
 
     // 关键帧插值函数

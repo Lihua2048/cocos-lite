@@ -26,24 +26,48 @@ export interface PhysicsComponent extends Component {
   // 可扩展更多物理属性
 }
 
-export interface Entity {
-  id: string;
-  type: string;
-  position: { x: number; y: number };
-  properties: {
-    width: number;
-    height: number;
-    color: [number, number, number, number];
-    texture?: string;
-    angle?: number; // 支持物理旋转
-  };
-  components: (Component | PhysicsComponent)[];
-  animation?: EntityAnimation;
-}
+
+export type SpriteProperties = {
+  width: number;
+  height: number;
+  color: [number, number, number, number];
+  texture?: string;
+  angle?: number;
+};
+
+export type UIProperties = {
+  width: number;
+  height: number;
+  backgroundType: 'color' | 'image';
+  color: [number, number, number, number]; // 背景色
+  texture?: string; // 背景图片
+  text: string; // 按钮/文本内容/输入框placeholder
+  textColor: [number, number, number, number];
+  fontSize: number;
+  textAlign: 'left' | 'center' | 'right';
+};
+
+export type Entity =
+  | {
+      id: string;
+      type: 'sprite';
+      position: { x: number; y: number };
+      properties: SpriteProperties;
+      components: (Component | PhysicsComponent)[];
+      animation?: EntityAnimation;
+    }
+  | {
+      id: string;
+      type: 'ui-button' | 'ui-input' | 'ui-text';
+      position: { x: number; y: number };
+      properties: UIProperties;
+      components: (Component | PhysicsComponent)[];
+      animation?: EntityAnimation;
+    };
 
 export type EntityProperty =
-  | keyof Pick<Entity['properties'], 'width' | 'height' | 'color' | 'texture'>
-  | keyof Entity['position']
+  | 'width' | 'height' | 'color' | 'texture' | 'text' | 'fontSize'
+  | 'x' | 'y';
 
   // 新增资源类型
 export type TextureResource = string | {
@@ -88,23 +112,51 @@ export interface EntityAnimation {
 }
 
 // 添加默认动画状态
-export function createDefaultEntity(id: string, type: string): Entity {
-  return {
-    id,
-    type,
-    position: { x: 0, y: 0 },
-    properties: {
-      width: 100,
-      height: 100,
-      color: [1, 0, 0, 1],
-    },
-    components: [],
-    animation: {
-      playing: false,
-      currentAnimation: '',
-      currentTime: 0
-    }
-  };
+export function createDefaultEntity(id: string, type: 'sprite' | 'ui-button' | 'ui-input' | 'ui-text'): Entity {
+  if (type === 'sprite') {
+    return {
+      id,
+      type,
+      position: { x: 0, y: 0 },
+      properties: {
+        width: 100,
+        height: 100,
+        color: [1, 0, 0, 1],
+        texture: undefined,
+        angle: 0,
+      },
+      components: [],
+      animation: {
+        playing: false,
+        currentAnimation: '',
+        currentTime: 0
+      }
+    };
+  } else {
+    // UI组件
+    return {
+      id,
+      type,
+      position: { x: 0, y: 0 },
+      properties: {
+        width: 120,
+        height: 40,
+        backgroundType: 'color',
+        color: [0.9, 0.9, 0.9, 1],
+        texture: undefined,
+        text: type === 'ui-input' ? '请输入...' : '按钮',
+        textColor: [0, 0, 0, 1],
+        fontSize: 16,
+        textAlign: 'center',
+      },
+      components: [],
+      animation: {
+        playing: false,
+        currentAnimation: '',
+        currentTime: 0
+      }
+    };
+  }
 }
 
 

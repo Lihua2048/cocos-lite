@@ -60,28 +60,64 @@ export function editorReducer(
       const { id, updates } = action.payload;
       const existingEntity = state.entities[id];
       if (!existingEntity) return state;
-      // 合并更新，特别处理 position/properties/components
-      return {
-        ...state,
-        entities: {
-          ...state.entities,
-          [id]: {
-            ...existingEntity,
-            ...updates,
-            position: {
-              ...existingEntity.position,
-              ...(updates.position || {}),
+      // 类型安全地合并 properties，严格区分类型，且过滤 undefined，防止属性丢失
+      function filterUndefined<T extends object>(obj: Partial<T>): Partial<T> {
+        const result: Partial<T> = {};
+        for (const key in obj) {
+          if (obj[key] !== undefined) {
+            result[key] = obj[key];
+          }
+        }
+        return result;
+      }
+      if (existingEntity.type === 'sprite') {
+        return {
+          ...state,
+          entities: {
+            ...state.entities,
+            [id]: {
+              ...existingEntity,
+              ...updates,
+              type: 'sprite',
+              position: {
+                ...existingEntity.position,
+                ...(updates.position || {}),
+              },
+              properties: {
+                ...existingEntity.properties,
+                ...filterUndefined<import("./types").SpriteProperties>(updates.properties as Partial<import("./types").SpriteProperties> || {}),
+              },
+              components: updates.components
+                ? updates.components
+                : existingEntity.components,
             },
-            properties: {
-              ...existingEntity.properties,
-              ...(updates.properties || {}),
-            },
-            components: updates.components
-              ? updates.components
-              : existingEntity.components,
           },
-        },
-      };
+        };
+      } else {
+        // UIEntity
+        return {
+          ...state,
+          entities: {
+            ...state.entities,
+            [id]: {
+              ...existingEntity,
+              ...updates,
+              type: existingEntity.type, // 'ui-button' | 'ui-input' | 'ui-text'
+              position: {
+                ...existingEntity.position,
+                ...(updates.position || {}),
+              },
+              properties: {
+                ...existingEntity.properties,
+                ...filterUndefined<import("./types").UIProperties>(updates.properties as Partial<import("./types").UIProperties> || {}),
+              },
+              components: updates.components
+                ? updates.components
+                : existingEntity.components,
+            },
+          },
+        };
+      }
     }
 
     // 物理组件相关
@@ -159,19 +195,40 @@ export function editorReducer(
 
     case "UPDATE_ENTITY_TEXTURE": {
       const { entityId, textureId } = action.payload;
-      return {
-        ...state,
-        entities: {
-          ...state.entities,
-          [entityId]: {
-            ...state.entities[entityId],
-            properties: {
-              ...state.entities[entityId].properties,
-              texture: textureId,
+      const entity = state.entities[entityId];
+      if (!entity) return state;
+      if (entity.type === 'sprite') {
+        return {
+          ...state,
+          entities: {
+            ...state.entities,
+            [entityId]: {
+              ...entity,
+              type: 'sprite',
+              properties: {
+                ...entity.properties,
+                texture: textureId,
+              },
             },
           },
-        },
-      };
+        };
+      } else {
+        // UIEntity
+        return {
+          ...state,
+          entities: {
+            ...state.entities,
+            [entityId]: {
+              ...entity,
+              type: entity.type,
+              properties: {
+                ...entity.properties,
+                texture: textureId,
+              },
+            },
+          },
+        };
+      }
     }
 
     case "PLAY_ANIMATION": {

@@ -154,41 +154,92 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     }
   };
 
-  // 左键点击处理（添加实体）
-  const handleClick = (event: React.MouseEvent) => {
-    // 如果正在拖拽，不处理点击事件
-    if (draggingEntityId) return;
+  // 取消点击空白处创建实体逻辑，改为支持拖拽创建
 
-    // 检查是否点击了实体
-    const clickedEntity = getEntityAtPosition(event.clientX, event.clientY);
-
-    if (!clickedEntity) {
-      // 点击空白处 - 添加新实体
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const pixelRatio = window.devicePixelRatio || 1;
-
-      // 创建新实体对象（使用自定义类型）
-      const newEntity: Entity = {
+  // 支持拖拽组件到canvas创建实体
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    const type = event.dataTransfer.getData('component-type');
+    if (!type) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const pixelRatio = window.devicePixelRatio || 1;
+    const x = (event.clientX - rect.left) * pixelRatio;
+    const y = (event.clientY - rect.top) * pixelRatio;
+    // 默认属性
+    let entity: Entity;
+    if (type === 'sprite') {
+      entity = {
         id: `entity-${Date.now()}`,
-        type: "sprite",
-        position: {
-          x: (event.clientX - rect.left) * pixelRatio,
-          y: (event.clientY - rect.top) * pixelRatio,
-        },
+        type: 'sprite',
+        position: { x, y },
+        properties: { width: 100, height: 100, color: [1, 0, 0, 1], texture: '', angle: 0 },
+        components: []
+      };
+    } else if (type === 'ui-button') {
+      entity = {
+        id: `entity-${Date.now()}`,
+        type: 'ui-button',
+        position: { x, y },
         properties: {
-          width: 100,
-          height: 100,
-          color: [1.0, 0.0, 0.0, 1.0] as [number, number, number, number]
+          width: 120,
+          height: 40,
+          color: [0.2, 0.5, 1, 1],
+          text: '按钮',
+          backgroundType: 'color',
+          textColor: [1, 1, 1, 1],
+          fontSize: 16,
+          textAlign: 'center',
+          texture: ''
         },
         components: []
       };
-
-      dispatch(addEntity(newEntity));
+    } else if (type === 'ui-input') {
+      entity = {
+        id: `entity-${Date.now()}`,
+        type: 'ui-input',
+        position: { x, y },
+        properties: {
+          width: 180,
+          height: 36,
+          color: [1, 1, 1, 1],
+          text: '输入框',
+          backgroundType: 'color',
+          textColor: [0, 0, 0, 1],
+          fontSize: 16,
+          textAlign: 'left',
+          texture: ''
+        },
+        components: []
+      };
+    } else if (type === 'ui-text') {
+      entity = {
+        id: `entity-${Date.now()}`,
+        type: 'ui-text',
+        position: { x, y },
+        properties: {
+          width: 120,
+          height: 30,
+          color: [0, 0, 0, 1],
+          text: '文本',
+          backgroundType: 'color',
+          textColor: [0, 0, 0, 1],
+          fontSize: 16,
+          textAlign: 'left',
+          texture: ''
+        },
+        components: []
+      };
+    } else {
+      return;
     }
-    // 不再在 handleClick 里派发 selectEntity，统一在 handleMouseDown 处理
+    dispatch(addEntity(entity));
+  };
+
+  // 允许拖拽经过canvas
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
   };
 
   // 初始化WebGL渲染器
@@ -246,7 +297,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
             const def: any = {
               type: physicsComp.bodyType || 'dynamic',
               position: { x: entity.position.x, y: safeY },
-              angle: entity.properties.angle || 0,
+              angle: (entity.type === 'sprite' && 'angle' in entity.properties) ? (entity.properties as any).angle || 0 : 0,
               fixedRotation: !!physicsComp.fixedRotation
             };
             const body = (physicsWorld as any).createBody(def, { id: entity.id });
@@ -443,8 +494,9 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onClick={handleClick}
         onContextMenu={handleContextMenu}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
       />
       {/* 操作提示 */}
       <View style={styles.tips}>
