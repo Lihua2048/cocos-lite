@@ -1,7 +1,5 @@
-import { createStore } from 'redux';
+import { configureStore } from '@reduxjs/toolkit';
 import { editorReducer } from '../core/reducer';
-import { EditorState} from '../core/types';
-import { EditorAction } from '../core/actions';
 
 const initialState  = {
   entities: {},
@@ -11,4 +9,7 @@ const initialState  = {
   physicsRunning: true,
 };
 
-export const store = createStore(editorReducer, initialState);
+export const store = configureStore({
+  reducer: editorReducer,
+  preloadedState: initialState,
+});
