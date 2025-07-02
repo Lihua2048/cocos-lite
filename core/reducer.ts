@@ -40,11 +40,59 @@ export function editorReducer(
       };
     }
     case "ADD_ENTITY": {
+      // 类型安全兜底，防止 color/backgroundType 被污染
+      const entity = action.payload;
+      if (entity.type === 'ui-button' || entity.type === 'ui-input' || entity.type === 'ui-text') {
+        let props = entity.properties as any;
+        // color 兜底
+        let safeColor: [number, number, number, number] = [0.9,0.9,0.9,1];
+        if (Array.isArray(props.color) && props.color.length === 4 && props.color.every((v: any) => typeof v === 'number' && !isNaN(v))) {
+          safeColor = [props.color[0], props.color[1], props.color[2], props.color[3]];
+        }
+        // backgroundType 只允许 'color' | 'image'
+        let safeBackgroundType: 'color' | 'image' = 'color';
+        if (props.backgroundType === 'image') safeBackgroundType = 'image';
+        // textColor 兜底
+        let safeTextColor: [number, number, number, number] = [0,0,0,1];
+        if (Array.isArray(props.textColor) && props.textColor.length === 4 && props.textColor.every((v: any) => typeof v === 'number' && !isNaN(v))) {
+          safeTextColor = [props.textColor[0], props.textColor[1], props.textColor[2], props.textColor[3]];
+        }
+        // fontSize 兜底
+        let safeFontSize = 16;
+        if (typeof props.fontSize === 'number' && !isNaN(props.fontSize)) safeFontSize = props.fontSize;
+        // textAlign 只允许 'left' | 'center' | 'right'
+        let safeTextAlign: 'left' | 'center' | 'right' = 'left';
+        if (props.textAlign === 'center' || props.textAlign === 'right') safeTextAlign = props.textAlign;
+        entity.properties = {
+          width: props.width,
+          height: props.height,
+          color: safeColor,
+          backgroundType: safeBackgroundType,
+          texture: props.texture !== undefined ? props.texture : undefined,
+          text: typeof props.text === 'string' ? props.text : '',
+          textColor: safeTextColor,
+          fontSize: safeFontSize,
+          textAlign: safeTextAlign,
+        };
+      } else if (entity.type === 'sprite') {
+        let props = entity.properties as any;
+        let safeColor: [number, number, number, number] = [1,1,1,1];
+        if (Array.isArray(props.color) && props.color.length === 4 && props.color.every((v: any) => typeof v === 'number' && !isNaN(v))) {
+          safeColor = [props.color[0], props.color[1], props.color[2], props.color[3]];
+        }
+        entity.properties = {
+          width: props.width,
+          height: props.height,
+          color: safeColor,
+          ...(props.texture !== undefined ? { texture: props.texture } : {}),
+          ...(props.angle !== undefined ? { angle: props.angle } : {})
+        };
+      }
       return {
         ...state,
         entities: {
           ...state.entities,
-          [action.payload.id]: action.payload,
+          [entity.id]: entity,
         },
       };
     }
@@ -62,15 +110,45 @@ export function editorReducer(
       if (!existingEntity) return state;
       // 类型安全地合并 properties，严格区分类型，且过滤 undefined，防止属性丢失
       function filterUndefined<T extends object>(obj: Partial<T>): Partial<T> {
-        const result: Partial<T> = {};
+        const result: any = {};
         for (const key in obj) {
-          if (obj[key] !== undefined) {
-            result[key] = obj[key];
+          const v = obj[key];
+          // 过滤 undefined/null/空数组/空对象
+          if (
+            v !== undefined &&
+            v !== null &&
+            !(Array.isArray(v) && v.length === 0) &&
+            !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+          ) {
+            result[key] = v;
           }
         }
-        return result;
+        return result as Partial<T>;
       }
       if (existingEntity.type === 'sprite') {
+        // 只保留 sprite 合法字段
+        const merged = {
+          ...existingEntity.properties,
+          ...filterUndefined<import("./types").SpriteProperties>(updates.properties as Partial<import("./types").SpriteProperties> || {}),
+        };
+        let safeColor: [number, number, number, number] = [1,1,1,1];
+        if (Array.isArray((updates.properties as any)?.color) && (updates.properties as any).color.length === 4 && (updates.properties as any).color.every((v: any) => typeof v === 'number')) {
+          safeColor = [
+            (updates.properties as any).color[0],
+            (updates.properties as any).color[1],
+            (updates.properties as any).color[2],
+            (updates.properties as any).color[3],
+          ];
+        } else if (Array.isArray(merged.color) && merged.color.length === 4 && merged.color.every((v: any) => typeof v === 'number')) {
+          safeColor = [merged.color[0], merged.color[1], merged.color[2], merged.color[3]];
+        }
+        const spriteProps: import("./types").SpriteProperties = {
+          width: merged.width,
+          height: merged.height,
+          color: safeColor,
+          ...(merged.texture !== undefined ? { texture: merged.texture } : {}),
+          ...(merged.angle !== undefined ? { angle: merged.angle } : {})
+        };
         return {
           ...state,
           entities: {
@@ -83,10 +161,7 @@ export function editorReducer(
                 ...existingEntity.position,
                 ...(updates.position || {}),
               },
-              properties: {
-                ...existingEntity.properties,
-                ...filterUndefined<import("./types").SpriteProperties>(updates.properties as Partial<import("./types").SpriteProperties> || {}),
-              },
+              properties: spriteProps,
               components: updates.components
                 ? updates.components
                 : existingEntity.components,
@@ -94,7 +169,61 @@ export function editorReducer(
           },
         };
       } else {
-        // UIEntity
+        // 只保留 UI 合法字段
+        const merged = {
+          ...existingEntity.properties,
+          ...filterUndefined<import("./types").UIProperties>(updates.properties as Partial<import("./types").UIProperties> || {}),
+        };
+        // color 字段强类型兜底
+        let safeColorUI: [number, number, number, number] = [0.9,0.9,0.9,1];
+        if (Array.isArray((updates.properties as any)?.color) && (updates.properties as any).color.length === 4 && (updates.properties as any).color.every((v: any) => typeof v === 'number')) {
+          safeColorUI = [
+            (updates.properties as any).color[0],
+            (updates.properties as any).color[1],
+            (updates.properties as any).color[2],
+            (updates.properties as any).color[3],
+          ];
+        } else if (Array.isArray(merged.color) && merged.color.length === 4 && merged.color.every((v: any) => typeof v === 'number')) {
+          safeColorUI = [merged.color[0], merged.color[1], merged.color[2], merged.color[3]];
+        }
+        // 再次兜底，防止 merged.color 被污染
+        if (!Array.isArray(safeColorUI) || safeColorUI.length !== 4 || safeColorUI.some(v => typeof v !== 'number')) {
+          safeColorUI = [0.9,0.9,0.9,1];
+        }
+        // backgroundType 兜底
+        // backgroundType 只允许 'color' | 'image'
+        let safeBackgroundType: 'color' | 'image' = 'color';
+        if (merged.backgroundType === 'image') safeBackgroundType = 'image';
+
+        // textColor 兜底，且防止 NaN
+        let safeTextColor: [number, number, number, number] = [0,0,0,1];
+        if (
+          Array.isArray(merged.textColor) &&
+          merged.textColor.length === 4 &&
+          merged.textColor.every((v: any) => typeof v === 'number' && !isNaN(v))
+        ) {
+          safeTextColor = [merged.textColor[0], merged.textColor[1], merged.textColor[2], merged.textColor[3]];
+        }
+
+        // fontSize 兜底，且防止 NaN
+        let safeFontSize = 16;
+        if (typeof merged.fontSize === 'number' && !isNaN(merged.fontSize)) safeFontSize = merged.fontSize;
+
+        // textAlign 只允许 'left' | 'center' | 'right'
+        let safeTextAlign: 'left' | 'center' | 'right' = 'left';
+        if (merged.textAlign === 'center' || merged.textAlign === 'right') safeTextAlign = merged.textAlign;
+
+        const uiProps: import("./types").UIProperties = {
+          width: merged.width,
+          height: merged.height,
+          color: safeColorUI,
+          backgroundType: safeBackgroundType,
+          texture: merged.texture !== undefined ? merged.texture : undefined,
+          text: typeof merged.text === 'string' ? merged.text : '',
+          textColor: safeTextColor,
+          fontSize: safeFontSize,
+          textAlign: safeTextAlign,
+        };
         return {
           ...state,
           entities: {
@@ -107,10 +236,7 @@ export function editorReducer(
                 ...existingEntity.position,
                 ...(updates.position || {}),
               },
-              properties: {
-                ...existingEntity.properties,
-                ...filterUndefined<import("./types").UIProperties>(updates.properties as Partial<import("./types").UIProperties> || {}),
-              },
+              properties: uiProps,
               components: updates.components
                 ? updates.components
                 : existingEntity.components,

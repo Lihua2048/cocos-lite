@@ -89,7 +89,11 @@ export const updateEntityProperty = (
 ) => {
   // 只允许受支持的属性
   const allowedPosition = ["position.x", "position.y", "x", "y"];
-  const allowedProperties = ["width", "height", "color", "texture"];
+  // 扩展支持 UI 组件所有属性
+  const allowedProperties = [
+    "width", "height", "color", "texture",
+    "text", "textColor", "fontSize", "backgroundType", "textAlign"
+  ];
   if (typeof property === 'string' && allowedPosition.includes(property)) {
     // 支持 position.x/y
     const axis = property.endsWith('.x') ? 'x' : property.endsWith('.y') ? 'y' : property;

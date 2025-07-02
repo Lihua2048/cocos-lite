@@ -120,21 +120,47 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     // 判断实体是否有物理组件
     const entities: Record<string, Entity> = store.getState().entities;
     const entity = entities[draggingEntityId];
-    const hasPhysics = entity && entity.components.some(c => c.type === 'physics');
-    if (hasPhysics) {
-      // 有物理组件，直接设置物理体位置
+    if (!entity) return;
+    const hasPhysics = entity.components.some(c => c.type === 'physics');
+    // 只有 sprite 且有物理体时优先操作物理体
+    if (entity.type === 'sprite' && hasPhysics) {
       const body = (physicsWorld as any).bodies?.get?.(draggingEntityId);
       if (body) {
         body.setPosition({ x: newX, y: newY });
-        body.setLinearVelocity(planck.Vec2(0, 0)); // 拖拽时速度清零，防止弹飞
+        body.setLinearVelocity(planck.Vec2(0, 0));
         body.setAwake(true);
+        return;
       }
-    } else {
-      // 无物理组件，直接更新实体属性
-      dispatch(updateEntity(draggingEntityId, {
-        position: { x: newX, y: newY }
-      }));
     }
+    // 其它情况（包括 UI 组件/无物理体 sprite），始终 updateEntity
+    let newProperties: any = {};
+    if (entity.type === 'sprite') {
+      const { width, height, color, texture, angle } = entity.properties as any;
+      newProperties = {
+        width,
+        height,
+        color: Array.isArray(color) && color.length === 4 ? color : [1,1,1,1],
+        ...(texture !== undefined ? { texture } : {}),
+        ...(angle !== undefined ? { angle } : {})
+      };
+    } else if (entity.type === 'ui-button' || entity.type === 'ui-input' || entity.type === 'ui-text') {
+      const { width, height, color, backgroundType, texture, text, textColor, fontSize, textAlign } = entity.properties as any;
+      newProperties = {
+        width,
+        height,
+        color: Array.isArray(color) && color.length === 4 ? color : [0.9,0.9,0.9,1],
+        backgroundType: backgroundType || 'color',
+        ...(texture !== undefined ? { texture } : {}),
+        ...(text !== undefined ? { text } : {}),
+        ...(textColor !== undefined ? { textColor } : {}),
+        ...(fontSize !== undefined ? { fontSize } : {}),
+        ...(textAlign !== undefined ? { textAlign } : {})
+      };
+    }
+    dispatch(updateEntity(draggingEntityId, {
+      position: { x: newX, y: newY },
+      properties: newProperties
+    }));
   };
 
   // 鼠标松开处理（结束拖拽）
@@ -169,68 +195,50 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     const y = (event.clientY - rect.top) * pixelRatio;
     // 默认属性
     let entity: Entity;
-    if (type === 'sprite') {
-      entity = {
-        id: `entity-${Date.now()}`,
-        type: 'sprite',
-        position: { x, y },
-        properties: { width: 100, height: 100, color: [1, 0, 0, 1], texture: '', angle: 0 },
-        components: []
-      };
-    } else if (type === 'ui-button') {
-      entity = {
-        id: `entity-${Date.now()}`,
-        type: 'ui-button',
-        position: { x, y },
-        properties: {
-          width: 120,
-          height: 40,
-          color: [0.2, 0.5, 1, 1],
-          text: '按钮',
-          backgroundType: 'color',
-          textColor: [1, 1, 1, 1],
-          fontSize: 16,
-          textAlign: 'center',
-          texture: ''
-        },
-        components: []
-      };
-    } else if (type === 'ui-input') {
-      entity = {
-        id: `entity-${Date.now()}`,
-        type: 'ui-input',
-        position: { x, y },
-        properties: {
-          width: 180,
-          height: 36,
-          color: [1, 1, 1, 1],
-          text: '输入框',
-          backgroundType: 'color',
-          textColor: [0, 0, 0, 1],
-          fontSize: 16,
-          textAlign: 'left',
-          texture: ''
-        },
-        components: []
-      };
-    } else if (type === 'ui-text') {
-      entity = {
-        id: `entity-${Date.now()}`,
-        type: 'ui-text',
-        position: { x, y },
-        properties: {
-          width: 120,
-          height: 30,
-          color: [0, 0, 0, 1],
-          text: '文本',
-          backgroundType: 'color',
-          textColor: [0, 0, 0, 1],
-          fontSize: 16,
-          textAlign: 'left',
-          texture: ''
-        },
-        components: []
-      };
+    // 统一用 createDefaultEntity，保证 UI 组件 color 字段和所有属性有默认值
+    // 并且 position 用拖拽点覆盖
+    // @ts-ignore
+    const { createDefaultEntity } = require("../../../core/types");
+    if (type === 'sprite' || type === 'ui-button' || type === 'ui-input' || type === 'ui-text') {
+      entity = createDefaultEntity(`entity-${Date.now()}`, type);
+      entity.position = { x, y };
+      // 类型安全兜底，防止 UI/sprite 字段互相污染
+      if (type === 'sprite') {
+        // 只保留 sprite 合法字段
+        const { width, height, color, texture, angle } = entity.properties as any;
+        let safeColor: [number, number, number, number] = [1,1,1,1];
+        if (Array.isArray(color) && color.length === 4 && color.every(v => typeof v === 'number')) {
+          safeColor = [color[0], color[1], color[2], color[3]];
+        }
+        entity.properties = {
+          width,
+          height,
+          color: safeColor,
+          ...(texture !== undefined ? { texture } : {}),
+          ...(angle !== undefined ? { angle } : {})
+        };
+      } else {
+        // 只保留 UI 合法字段
+        const { width, height, color, backgroundType, texture, text, textColor, fontSize, textAlign } = entity.properties as any;
+        let safeColor: [number, number, number, number] = [0.9,0.9,0.9,1];
+        if (Array.isArray(color) && color.length === 4 && color.every(v => typeof v === 'number')) {
+          safeColor = [color[0], color[1], color[2], color[3]];
+        }
+        // 调试输出color属性
+        // eslint-disable-next-line no-console
+        console.log('[DEBUG] 新建UI组件 color:', safeColor, '原始:', color, 'type:', entity.type);
+        entity.properties = {
+          width,
+          height,
+          color: safeColor,
+          backgroundType: backgroundType || 'color',
+          ...(texture !== undefined ? { texture } : {}),
+          ...(text !== undefined ? { text } : {}),
+          ...(textColor !== undefined ? { textColor } : {}),
+          ...(fontSize !== undefined ? { fontSize } : {}),
+          ...(textAlign !== undefined ? { textAlign } : {})
+        };
+      }
     } else {
       return;
     }
@@ -281,8 +289,10 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
       // 自动创建/同步/销毁物理体
       const existingBodyIds = new Set(Array.from((physicsWorld as any).bodies?.keys?.() || []));
       Object.values(entities).forEach((entity: Entity) => {
-        const physicsComp = entity.components.find(c => c.type === 'physics') as PhysicsComponent | undefined;
-        const hasBody = (physicsWorld as any).bodies?.has?.(entity.id);
+        // 深拷贝 entity，防止 state mutation
+        const entityCopy: Entity = JSON.parse(JSON.stringify(entity));
+        const physicsComp = entityCopy.components.find(c => c.type === 'physics') as PhysicsComponent | undefined;
+        const hasBody = (physicsWorld as any).bodies?.has?.(entityCopy.id);
         // 仅有物理组件的实体才参与物理体创建/同步/销毁
         // --- 物理属性变更检测与物理体重建 ---
         // 用于缓存上一次的物理属性
@@ -290,39 +300,39 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
         const cache = (window as any)._entityPhysicsCache;
         const keyProps = physicsComp ? [physicsComp.bodyType, physicsComp.density, physicsComp.friction, physicsComp.restitution, physicsComp.fixedRotation].join(',') : '';
         if (physicsComp) {
-          if (!hasBody || cache[entity.id] !== keyProps) {
+          if (!hasBody || cache[entityCopy.id] !== keyProps) {
             // 属性变更或无物理体时，重建物理体
-            if (hasBody) (physicsWorld as any).destroyBody(entity.id);
-            const safeY = Math.max(entity.position.y, 10);
+            if (hasBody) (physicsWorld as any).destroyBody(entityCopy.id);
+            const safeY = Math.max(entityCopy.position.y, 10);
             const def: any = {
               type: physicsComp.bodyType || 'dynamic',
-              position: { x: entity.position.x, y: safeY },
-              angle: (entity.type === 'sprite' && 'angle' in entity.properties) ? (entity.properties as any).angle || 0 : 0,
+              position: { x: entityCopy.position.x, y: safeY },
+              angle: (entityCopy.type === 'sprite' && 'angle' in entityCopy.properties) ? (entityCopy.properties as any).angle || 0 : 0,
               fixedRotation: !!physicsComp.fixedRotation
             };
-            const body = (physicsWorld as any).createBody(def, { id: entity.id });
-            const w = entity.properties.width / 2;
-            const h = entity.properties.height / 2;
+            const body = (physicsWorld as any).createBody(def, { id: entityCopy.id });
+            const w = entityCopy.properties.width / 2;
+            const h = entityCopy.properties.height / 2;
             body.createFixture(planck.Box(w, h), {
               density: physicsComp.density,
               friction: physicsComp.friction,
               restitution: physicsComp.restitution
             });
-            cache[entity.id] = keyProps;
+            cache[entityCopy.id] = keyProps;
           }
           // 同步物理体到实体
-          const body = (physicsWorld as any).bodies.get(entity.id);
+          const body = (physicsWorld as any).bodies.get(entityCopy.id);
           if (body) {
-            physicsWorld.syncEntityFromBody(entity, body);
-            dispatch(updateEntity(entity.id, {
-              position: { ...entity.position },
-              properties: { ...entity.properties }
+            physicsWorld.syncEntityFromBody(entityCopy, body);
+            dispatch(updateEntity(entityCopy.id, {
+              position: { ...entityCopy.position },
+              properties: { ...entityCopy.properties }
             }));
           }
-          existingBodyIds.delete(entity.id);
+          existingBodyIds.delete(entityCopy.id);
         } else if (hasBody) {
-          (physicsWorld as any).destroyBody(entity.id);
-          delete cache[entity.id];
+          (physicsWorld as any).destroyBody(entityCopy.id);
+          delete cache[entityCopy.id];
         }
       });
       // 清理已被删除的实体对应的物理体
@@ -350,6 +360,16 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
         }
         if (prev === next) return prev;
         const ratio = (t - prev.time) / (next.time - prev.time);
+        // 合成 text 字段，若关键帧未设置则为 undefined
+        let text;
+        if ('text' in prev && 'text' in next) {
+          // 若前后帧 text 相同则直接用，否则插值时取靠近当前时间的
+          if (prev.text === next.text) {
+            text = prev.text;
+          } else {
+            text = ratio < 0.5 ? prev.text : next.text;
+          }
+        }
         return {
           time: t,
           position: {
@@ -359,7 +379,8 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
           width: lerp(prev.width, next.width, ratio),
           height: lerp(prev.height, next.height, ratio),
           color: lerpColor(prev.color, next.color, ratio),
-          texture: ratio < 0.5 ? prev.texture : next.texture
+          texture: ratio < 0.5 ? prev.texture : next.texture,
+          ...(text !== undefined ? { text } : {})
         };
       }
 
@@ -384,21 +405,27 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
           if (anim && Array.isArray(anim.keyframes) && anim.keyframes.length > 0) {
             const frame = interpolateFrame(anim.keyframes, safeTime);
             if (frame) {
-              dispatch(updateEntity(entity.id, {
-                animation: {
-                  ...entity.animation,
-                  currentTime: nextTime,
-                  playing: nextPlaying
-                },
-                position: frame.position,
-                properties: {
-                  ...entity.properties,
-                  width: frame.width,
-                  height: frame.height,
-                  color: frame.color,
-                  texture: frame.texture
-                }
-              }));
+              // 修复：text 字段安全合并，若 frame.text 为 undefined/null/空字符串，则保留 entity.properties.text
+              let mergedText = (frame.text !== undefined && frame.text !== null && frame.text !== '')
+                ? frame.text
+                : (entity.properties && 'text' in entity.properties ? entity.properties.text : undefined);
+      // 关键帧插值后，color 字段安全合并，防止 undefined 覆盖
+      dispatch(updateEntity(entity.id, {
+        animation: {
+          ...entity.animation,
+          currentTime: nextTime,
+          playing: nextPlaying
+        },
+        position: frame.position,
+        properties: {
+          ...entity.properties,
+          width: frame.width,
+          height: frame.height,
+          color: frame.color || entity.properties.color || [1,1,1,1],
+          texture: frame.texture,
+          ...(mergedText !== undefined ? { text: mergedText } : {})
+        }
+      }));
             }
           } else {
             // 只推进时间

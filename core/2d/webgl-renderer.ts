@@ -5,6 +5,7 @@ import { EditorState, Animation } from "../types";
 import ResourceManager from "../resources/ResourceManager";
 import { SceneManager } from "../scene/SceneManager";
 import { SDFTextRenderer, SDFMeta } from "./sdf-font/sdf-text-renderer";
+import { sdfVertexShader, sdfFragmentShader } from "./sdf-font/sdf-shader";
 
 export class WebGLRenderer {
   private gl: WebGLRenderingContext | null;
@@ -24,6 +25,56 @@ export class WebGLRenderer {
   // SDF字体渲染相关
   private sdfTextRenderer: SDFTextRenderer | null;
   private sdfFontLoaded: boolean;
+  private sdfShaderProgram: WebGLProgram | null = null;
+  private sdfUniforms: {
+    u_projectionMatrix: WebGLUniformLocation | null;
+    u_fontTexture: WebGLUniformLocation | null;
+    u_textColor: WebGLUniformLocation | null;
+  } = {
+    u_projectionMatrix: null,
+    u_fontTexture: null,
+    u_textColor: null,
+  };
+  // 编译并缓存 SDF 字体专用 shader
+  private initSDFShader() {
+    if (!this.gl) return null;
+    const gl = this.gl;
+    // 编译顶点着色器
+    const vs = gl.createShader(gl.VERTEX_SHADER)!;
+    gl.shaderSource(vs, sdfVertexShader);
+    gl.compileShader(vs);
+    if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+      console.error("SDF Vertex shader error:", gl.getShaderInfoLog(vs));
+      gl.deleteShader(vs);
+      return null;
+    }
+    // 编译片段着色器
+    const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+    gl.shaderSource(fs, sdfFragmentShader);
+    gl.compileShader(fs);
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+      console.error("SDF Fragment shader error:", gl.getShaderInfoLog(fs));
+      gl.deleteShader(fs);
+      return null;
+    }
+    // 创建 program
+    const program = gl.createProgram()!;
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error("SDF Program link error:", gl.getProgramInfoLog(program));
+      gl.deleteProgram(program);
+      return null;
+    }
+    // 缓存 uniform 位置
+    this.sdfUniforms = {
+      u_projectionMatrix: gl.getUniformLocation(program, "u_projectionMatrix"),
+      u_fontTexture: gl.getUniformLocation(program, "u_fontTexture"),
+      u_textColor: gl.getUniformLocation(program, "u_textColor"),
+    };
+    return program;
+  }
 
 
 
@@ -90,13 +141,17 @@ export class WebGLRenderer {
       this.entityVertexBuffer = this.gl.createBuffer();
     }
 
-    // 加载 SDF 字体元数据和贴图
+    // 加载 SDF 字体元数据和贴图（自动适配 msdf-bmfont-xml 生成的新资源）
     try {
-      const metaResp = await fetch("./core/2d/sdf-font/roboto-msdf.json");
-      const meta: SDFMeta = await metaResp.json();
+      const metaResp = await fetch("./core/2d/sdf-font/HarmonyOS_Sans_Regular-msdf.json");
+      const meta = await metaResp.json();
       this.sdfTextRenderer = new SDFTextRenderer(this.gl, meta);
-      await this.sdfTextRenderer.loadTexture("./core/2d/sdf-font/roboto-msdf.png");
+      // 贴图文件名自动取 pages[0]
+      const atlas = meta.pages && meta.pages[0] ? meta.pages[0] : "HarmonyOS_Sans_Regular-msdf.png";
+      await this.sdfTextRenderer.loadTexture(`./core/2d/sdf-font/${atlas}`);
       this.sdfFontLoaded = true;
+      // 初始化 SDF shader
+      this.sdfShaderProgram = this.initSDFShader();
     } catch (e) {
       console.warn("SDF字体加载失败", e);
     }
@@ -372,20 +427,17 @@ export class WebGLRenderer {
       let y = entity.position.y || 0;
       let width = entity.properties.width || 50;
       let height = entity.properties.height || 50;
-      let color = entity.properties.color || [1, 0, 0, 1];
-
-      // UI类型：优先使用属性面板设置的 color，否则用类型区分色
-      if (entity.type === 'ui-button' || entity.type === 'ui-input' || entity.type === 'ui-text') {
-        // UIProperties: color 字段为背景色
-        if (entity.properties.backgroundType === 'color' && entity.properties.color) {
+      // 健壮兜底 color 逻辑
+      let color: [number, number, number, number] = [1, 1, 1, 1];
+      if (entity.type === 'sprite') {
+        if (Array.isArray(entity.properties.color) && entity.properties.color.length === 4 && entity.properties.color.every(v => typeof v === 'number')) {
           color = entity.properties.color;
-        } else if (entity.properties.backgroundType === 'image') {
-          color = [1, 1, 1, 1]; // 图片背景时默认白色
+        }
+      } else if (entity.type === 'ui-button' || entity.type === 'ui-input' || entity.type === 'ui-text') {
+        if (Array.isArray(entity.properties.color) && entity.properties.color.length === 4 && entity.properties.color.every(v => typeof v === 'number')) {
+          color = entity.properties.color;
         } else {
-          // fallback
-          if (entity.type === 'ui-button') color = [0.2, 0.5, 1, 1];
-          else if (entity.type === 'ui-input') color = [1, 1, 1, 1];
-          else if (entity.type === 'ui-text') color = [0.9, 0.9, 0.9, 1];
+          color = [0.9, 0.9, 0.9, 1];
         }
       }
 
@@ -439,6 +491,8 @@ export class WebGLRenderer {
         }
       }
       // 创建实体特定的顶点数据（包含纹理坐标）
+      // 修复：每次绘制前都绑定entityVertexBuffer，防止no buffer错误
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.entityVertexBuffer);
       const entityVertices = new Float32Array([
         x, y, 0.0, 0.0,
         x + width, y, 1.0, 0.0,
@@ -458,25 +512,50 @@ export class WebGLRenderer {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
       // -------- SDF字体渲染：UI组件文字 --------
-      if ((entity.type === 'ui-button' || entity.type === 'ui-input' || entity.type === 'ui-text') && this.sdfTextRenderer && this.sdfFontLoaded) {
+      if ((entity.type === 'ui-button' || entity.type === 'ui-input' || entity.type === 'ui-text') && this.sdfTextRenderer && this.sdfFontLoaded && this.sdfShaderProgram) {
         const text = entity.properties.text || '';
         if (text) {
-          // 计算文字区域
           const fontSize = entity.properties.fontSize || 16;
           const textColor = entity.properties.textColor || [0,0,0,1];
           const textAlign = entity.properties.textAlign || 'left';
-          // 这里直接调用 SDFTextRenderer 的 drawText（实际渲染逻辑需在 SDFTextRenderer 内实现）
+          // 新增：支持垂直方向排版，默认居中，可选 top/middle/bottom
+          // 通过 entity.properties.verticalAlign 控制，默认 middle
+          const verticalAlign = entity.properties.verticalAlign || 'middle';
+          let textY = y;
+          // 向上移动50%：在顶对齐的基础上再向上偏移一半高度
+          // 即 y + fontSize - height * 0.5
+          textY = y;
+          // 切换到 SDF shader
+          gl.useProgram(this.sdfShaderProgram);
+          // 设置投影矩阵
+          if (this.sdfUniforms.u_projectionMatrix) {
+            gl.uniformMatrix4fv(this.sdfUniforms.u_projectionMatrix, false, this.projectionMatrix);
+          }
+          // 绑定字体贴图
+          gl.activeTexture(gl.TEXTURE0);
+          if (this.sdfTextRenderer.fontTexture && this.sdfUniforms.u_fontTexture) {
+            gl.bindTexture(gl.TEXTURE_2D, this.sdfTextRenderer.fontTexture);
+            gl.uniform1i(this.sdfUniforms.u_fontTexture, 0);
+          }
+          // 设置字体颜色
+          if (this.sdfUniforms.u_textColor) {
+            gl.uniform4fv(this.sdfUniforms.u_textColor, textColor);
+          }
+          // 绘制文字
           this.sdfTextRenderer.drawText(
             text,
             x,
-            y + fontSize + 4, // 顶部留边距
+            textY,
             {
               fontSize,
               color: textColor,
               textAlign,
               maxWidth: width
-            }
+            },
+            this.sdfShaderProgram // 强制传入 SDF shader program
           );
+          // 恢复主 shader
+          gl.useProgram(shaderProgram);
         }
       }
     });

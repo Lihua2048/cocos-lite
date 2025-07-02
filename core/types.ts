@@ -45,6 +45,7 @@ export type UIProperties = {
   textColor: [number, number, number, number];
   fontSize: number;
   textAlign: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom'; // 新增，支持垂直方向排版
 };
 
 export type Entity =
@@ -133,7 +134,10 @@ export function createDefaultEntity(id: string, type: 'sprite' | 'ui-button' | '
       }
     };
   } else {
-    // UI组件
+    // UI组件，默认英文
+    let defaultText = 'Button';
+    if (type === 'ui-input') defaultText = 'Input';
+    if (type === 'ui-text') defaultText = 'Text';
     return {
       id,
       type,
@@ -144,7 +148,7 @@ export function createDefaultEntity(id: string, type: 'sprite' | 'ui-button' | '
         backgroundType: 'color',
         color: [0.9, 0.9, 0.9, 1],
         texture: undefined,
-        text: type === 'ui-input' ? '请输入...' : '按钮',
+        text: defaultText,
         textColor: [0, 0, 0, 1],
         fontSize: 16,
         textAlign: 'center',
