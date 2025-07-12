@@ -1,7 +1,7 @@
-import { Animation } from './Animation';
-import { AnimationState } from './AnimationState';
-import { Entity } from '../entity';
-import { SceneManager } from '../scene/SceneManager';
+import { Animation } from "./Animation";
+import { AnimationState } from "./AnimationState";
+import { Entity } from "../entity";
+import { SceneManager } from "../scene/SceneManager";
 
 export const sceneManager = new SceneManager();
 
@@ -14,7 +14,13 @@ export class AnimationSystem {
   registerAnimation(name: string, animation: Animation) {
     this.animations.set(name, animation);
   }
-
+  public getAllAnimations(): Record<string, Animation> {
+    const result: Record<string, Animation> = {};
+    this.animations.forEach((animation, name) => {
+      result[name] = animation;
+    });
+    return result;
+  }
   // 确保方法签名与声明文件一致
   public playAnimation(entityId: string, name: string) {
     const animation = this.animations.get(name);
@@ -28,7 +34,6 @@ export class AnimationSystem {
     }
   }
 
-
   public pauseAnimation(entityId: string) {
     const animationName = this.entityAnimations.get(entityId);
     if (animationName) {
@@ -41,14 +46,15 @@ export class AnimationSystem {
 
   private animate(state: AnimationState, entityId: string) {
     const now = performance.now();
-    const deltaTime = this.lastTime === 0 ? 0.016 : (now - this.lastTime) / 1000;
+    const deltaTime =
+      this.lastTime === 0 ? 0.016 : (now - this.lastTime) / 1000;
     this.lastTime = now;
 
     if (!state.isComplete()) {
       state.update(deltaTime);
       const value = state.getCurrentValue();
 
-      const scene = sceneManager.getActiveScene();
+      const scene = sceneManager.getCurrentScene();
       const entity = scene?.getEntityById(entityId);
 
       if (entity) {

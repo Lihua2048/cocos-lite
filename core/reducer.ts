@@ -1,7 +1,7 @@
 // core/reducer.ts
 // core/reducer.ts
 
-import { EditorState } from "./types";
+import { EditorState, SceneData } from "./types";
 import { EditorAction } from "./actions";
 
 // 修复：明确定义 reducer 类型
@@ -11,6 +11,21 @@ const initialState: EditorState = {
   textures: [],
   animations: {},
   physicsRunning: true,
+  scenes: {
+    'default': {
+      id: 'default',
+      name: '默认场景',
+      entities: {},
+      animations: {},
+      metadata: {
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        entityCount: 0
+      }
+    }
+  },
+  currentSceneId: 'default',
+  sceneHistory: ['default']
 };
 
 export function editorReducer(
@@ -428,6 +443,121 @@ export function editorReducer(
             },
           },
         },
+      };
+    }
+
+    case 'CREATE_SCENE': {
+      const { id, name } = action.payload;
+      const newScene: SceneData = {
+        id,
+        name,
+        entities: {},
+        animations: {},
+        metadata: {
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          entityCount: 0
+        }
+      };
+      return {
+        ...state,
+        scenes: {
+          ...state.scenes,
+          [id]: newScene
+        }
+      };
+    }
+
+    case 'DELETE_SCENE': {
+      const sceneId = action.payload;
+      if (sceneId === state.currentSceneId) {
+        // 不能删除当前场景，需要先切换到其他场景
+        return state;
+      }
+      const { [sceneId]: deletedScene, ...remainingScenes } = state.scenes;
+      return {
+        ...state,
+        scenes: remainingScenes,
+        sceneHistory: state.sceneHistory.filter(id => id !== sceneId)
+      };
+    }
+
+    case 'SWITCH_SCENE': {
+      const sceneId = action.payload;
+      if (!state.scenes[sceneId] || sceneId === state.currentSceneId) {
+        return state;
+      }
+
+      // 保存当前场景状态
+      const currentScene = state.scenes[state.currentSceneId!];
+      const updatedCurrentScene = {
+        ...currentScene,
+        entities: state.entities,
+        animations: state.animations,
+        metadata: {
+          ...currentScene.metadata,
+          updatedAt: new Date().toISOString(),
+          entityCount: Object.keys(state.entities).length
+        }
+      };
+
+      // 加载目标场景
+      const targetScene = state.scenes[sceneId];
+      return {
+        ...state,
+        currentSceneId: sceneId,
+        entities: targetScene.entities,
+        animations: targetScene.animations,
+        selectedEntityId: null, // 切换场景时清除选中
+        scenes: {
+          ...state.scenes,
+          [state.currentSceneId!]: updatedCurrentScene
+        },
+        sceneHistory: [sceneId, ...state.sceneHistory.filter(id => id !== sceneId)].slice(0, 10) // 保留最近10个
+      };
+    }
+
+    case 'SAVE_CURRENT_SCENE': {
+      if (!state.currentSceneId) return state;
+
+      const currentScene = state.scenes[state.currentSceneId];
+      const updatedScene = {
+        ...currentScene,
+        entities: state.entities,
+        animations: state.animations,
+        metadata: {
+          ...currentScene.metadata,
+          updatedAt: new Date().toISOString(),
+          entityCount: Object.keys(state.entities).length
+        }
+      };
+
+      return {
+        ...state,
+        scenes: {
+          ...state.scenes,
+          [state.currentSceneId]: updatedScene
+        }
+      };
+    }
+
+    case 'RENAME_SCENE': {
+      const { id, newName } = action.payload;
+      if (!state.scenes[id]) return state;
+
+      return {
+        ...state,
+        scenes: {
+          ...state.scenes,
+          [id]: {
+            ...state.scenes[id],
+            name: newName,
+            metadata: {
+              ...state.scenes[id].metadata,
+              updatedAt: new Date().toISOString()
+            }
+          }
+        }
       };
     }
 

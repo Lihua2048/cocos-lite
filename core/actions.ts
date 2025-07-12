@@ -3,7 +3,7 @@ export const saveAnimation = (name: string, propertyName: string, keyframes: any
   type: 'SAVE_ANIMATION',
   payload: { name, propertyName, keyframes }
 });
-import { Entity, EntityProperty, TextureResource } from "./types";
+import { Entity, EntityProperty, SceneData, TextureResource } from "./types";
 
 
 export const ADD_ENTITY = "ADD_ENTITY";
@@ -34,7 +34,40 @@ export type EditorAction =
   | { type: "ADD_PHYSICS_COMPONENT"; payload: { entityId: string; component: import("./types").PhysicsComponent } }
   | { type: "REMOVE_PHYSICS_COMPONENT"; payload: { entityId: string } }
   | { type: "UPDATE_PHYSICS_COMPONENT"; payload: { entityId: string; updates: Partial<import("./types").PhysicsComponent> } }
-  | { type: "SET_PHYSICS_RUNNING"; payload: boolean };
+  | { type: "SET_PHYSICS_RUNNING"; payload: boolean }
+  | { type: 'CREATE_SCENE'; payload: { id: string; name: string } }
+  | { type: 'DELETE_SCENE'; payload: string } // sceneId
+  | { type: 'SWITCH_SCENE'; payload: string } // sceneId
+  | { type: 'SAVE_CURRENT_SCENE'; payload?: void }
+  | { type: 'LOAD_SCENE'; payload: SceneData }
+  | { type: 'RENAME_SCENE'; payload: { id: string; newName: string } }
+  | { type: 'IMPORT_SCENES'; payload: SceneData[] }
+  | { type: 'EXPORT_SCENES'; payload?: void };
+
+// 场景相关
+export const createScene = (id: string, name: string) => ({
+  type: 'CREATE_SCENE' as const,
+  payload: { id, name }
+});
+
+export const deleteScene = (sceneId: string) => ({
+  type: 'DELETE_SCENE' as const,
+  payload: sceneId
+});
+
+export const switchScene = (sceneId: string) => ({
+  type: 'SWITCH_SCENE' as const,
+  payload: sceneId
+});
+
+export const saveCurrentScene = () => ({
+  type: 'SAVE_CURRENT_SCENE' as const
+});
+
+export const renameScene = (id: string, newName: string) => ({
+  type: 'RENAME_SCENE' as const,
+  payload: { id, newName }
+});
 
 // 物理运行/暂停
 export const setPhysicsRunning = (running: boolean): EditorAction => ({

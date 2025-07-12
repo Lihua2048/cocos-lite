@@ -1,15 +1,26 @@
 import { Component } from "./component";
 
 export class Entity {
+  public type: string; // 添加这行
+  public properties: any; // 添加这行
   public id: string;
-  public position: { x: number, y: number };  // 添加position属性
+  public position: { x: number; y: number }; // 添加position属性
   private components: Map<string, Component> = new Map();
   private animationValue: number = 0;
 
-  constructor(id?: string) {
-    this.id =
-      id || `entity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    this.position = { x: 0, y: 0 };  // 初始化position
+  constructor(id?: string, type?: string, position?: { x: number; y: number }, properties?: any) {
+  this.id = id || `entity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  this.type = type || 'sprite'; // 初始化type属性
+  this.position = position || { x: 0, y: 0 };
+  this.properties = properties || {}; // 同时初始化properties
+}
+
+  public getType(): string {
+    return this.type;
+  }
+
+  public getProperties(): any {
+    return this.properties;
   }
   addComponent(component: Component): void {
     this.components.set(component.constructor.name, component);
@@ -27,7 +38,7 @@ export class Entity {
 
   setAnimationValue(value: number) {
     this.animationValue = value;
-    this.position.x = value*10;  // 现在position属性已正确定义
+    this.position.x = value * 10; // 现在position属性已正确定义
   }
 
   getAnimationValue(): number {
@@ -35,8 +46,7 @@ export class Entity {
   }
 }
 
-
 export function createDefaultEntity(id: string, type: string): Entity {
-    const entity = new Entity(id);
-    return entity;
+  const entity = new Entity(id, type); // 传递type参数
+  return entity;
 }

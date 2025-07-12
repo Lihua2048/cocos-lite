@@ -4,11 +4,39 @@ export interface EditorState {
   textures: TextureResource[];
   animations: Record<string, Animation>;
   physicsRunning: boolean; // 是否运行物理模拟
+  // 场景管理字段
+  scenes: Record<string, SceneData>;
+  currentSceneId: string | null;
+  sceneHistory: string[]; // 场景切换历史
 }
+
+
 
 export type RootState = EditorState;
 
-// 组件基础类型
+
+export type SceneActionType =
+  | "CREATE_SCENE"
+  | "DELETE_SCENE"
+  | "SWITCH_SCENE"
+  | "SAVE_CURRENT_SCENE"
+  | "LOAD_SCENE"
+  | "RENAME_SCENE"
+  | "IMPORT_SCENES"
+  | "EXPORT_SCENES";
+
+export interface SceneData {
+  id: string;
+  name: string;
+  entities: Record<string, Entity>;
+  animations: Record<string, Animation>;
+  metadata: {
+    createdAt: string;
+    updatedAt: string;
+    entityCount: number;
+    description?: string;
+  };
+}
 
 // 通用组件类型
 export interface Component {

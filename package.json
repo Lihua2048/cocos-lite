@@ -7,7 +7,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "build:h5": "cd build && npm run build:h5",
+    "build:wechat": "cd build && npm run build:wechat",
+    "preview:h5": "cd build && npm run preview:h5",
+    "build:install": "cd build && npm install"
   },
   "dependencies": {
     "@babel/runtime": "^7.23.9",
