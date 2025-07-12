@@ -22,9 +22,9 @@ export default function KeyframeEditor({
   propertyName: string
 }) {
   // 获取全局 textures、entities、selectedEntityId
-  const textures = useSelector((state: RootState) => state.textures);
-  const entities = useSelector((state: RootState) => state.entities);
-  const selectedEntityId = useSelector((state: RootState) => state.selectedEntityId);
+  const textures = useSelector((state: RootState) => state.editor.textures);
+  const entities = useSelector((state: RootState) => state.editor.entities);
+  const selectedEntityId = useSelector((state: RootState) => state.editor.selectedEntityId);
   const selectedEntity: Entity | undefined = selectedEntityId ? entities[selectedEntityId] : undefined;
 
   // 关键帧初始值：如实体有纹理则用实体纹理，否则空

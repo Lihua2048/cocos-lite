@@ -1,5 +1,6 @@
-import { configureStore, Middleware } from '@reduxjs/toolkit';
+import { configureStore, Middleware, combineReducers } from '@reduxjs/toolkit';
 import { editorReducer } from '../core/reducer';
+import { projectReducer } from '../core/reducers/projectReducer';
 import { SceneStorage } from '../core/utils/sceneStorage';
 
 // 从本地存储加载场景数据
@@ -56,10 +57,18 @@ const sceneAutoSaveMiddleware: Middleware = (store) => (next) => (action: any) =
   return result;
 };
 
+// 组合所有 reducers
+const rootReducer = combineReducers({
+  editor: editorReducer,
+  projects: projectReducer,
+});
+
+// 更新 RootState 类型
+export type RootState = ReturnType<typeof rootReducer>;
+
 // 配置store
 export const store = configureStore({
-  reducer: editorReducer,
-  preloadedState: initialState,
+  reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
@@ -73,5 +82,4 @@ export const store = configureStore({
 });
 
 // 导出类型
-export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

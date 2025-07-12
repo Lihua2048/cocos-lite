@@ -46,21 +46,21 @@ export class SceneManager {
   // 获取当前场景数据
   getCurrentSceneData() {
     const state = store.getState();
-    return state.currentSceneId ? state.scenes[state.currentSceneId] : null;
+    return state.editor.currentSceneId ? state.editor.scenes[state.editor.currentSceneId] : null;
   }
 
   getCurrentScene(): Scene | null {
   const state = store.getState();
-  if (state.currentSceneId && state.scenes[state.currentSceneId]) {
+  if (state.editor.currentSceneId && state.editor.scenes[state.editor.currentSceneId]) {
     // 从场景数据重构Scene实例
-    return Scene.deserialize(state.scenes[state.currentSceneId]);
+    return Scene.deserialize(state.editor.scenes[state.editor.currentSceneId]);
   }
   return null;
 }
 
   // 获取所有场景
   getAllScenes() {
-    return store.getState().scenes;
+    return store.getState().editor.scenes;
   }
 }
 

@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useSelector } from 'react-redux';
+import { RootState } from '../../../core/types';
 
 export default function EntityListPane() {
-  const entities = useSelector((state: any) => Object.values(state.entities));
+  const entities = useSelector((state: RootState) => Object.values(state.editor.entities || {}));
 
   return (
     <View style={styles.container}>

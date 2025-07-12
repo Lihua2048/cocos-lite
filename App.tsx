@@ -10,6 +10,7 @@ import ResourceManager from "./core/resources/ResourceManager";
 import ResourceManagerPanel from "./editor/components/resources/ResourceManagerPanel";
 import SceneManagerPanel from "./editor/components/scene/SceneManagerPanel";
 import BuildManagerPanel from "./build/BuildManagerPanel";
+import ProjectManagerPanel from "./editor/components/project/ProjectManagerPanel";
 
 export default function App() {
   const resourceManager = useRef(new ResourceManager());
@@ -19,50 +20,57 @@ export default function App() {
       <View style={styles.container}>
         <Text style={styles.title}>简易Cocos Creator</Text>
         <View style={styles.editorLayout}>
-          {/* 顶部场景管理栏 */}
-          <SceneManagerPanel />
-          {/* 构建管理面板 */}
-          <BuildManagerPanel />
-          {/* 三栏布局：最左侧为组件栏 */}
-          <View style={{ flexDirection: "row", height: "100%" }}>
-            {/* 组件栏 */}
-            <View
-              style={{
-                width: 120,
-                backgroundColor: "#f5f5f5",
-                borderRightWidth: 1,
-                borderRightColor: "#ddd",
-              }}
-            >
-              {require("./editor/components/ComponentPalette").default()}
-            </View>
-            {/* 中间主区：画布+底部资源区 */}
-            <View style={{ flex: 1, flexDirection: "column", minWidth: 0 }}>
-              <View style={styles.centerPanel}>
-                <Canvas resourceManager={resourceManager.current} />
-              </View>
+          {/* 顶部项目管理栏 */}
+          <View style={styles.topBar}>
+            <ProjectManagerPanel />
+          </View>
+          {/* 主编辑器区域 */}
+          <View style={styles.mainEditorArea}>
+            {/* 场景管理栏 */}
+            <SceneManagerPanel />
+            {/* 构建管理面板 */}
+            <BuildManagerPanel />
+            {/* 三栏布局：最左侧为组件栏 */}
+            <View style={{ flexDirection: "row", height: "100%" }}>
+              {/* 组件栏 */}
               <View
                 style={{
-                  flexDirection: "row",
-                  width: "100%",
-                  backgroundColor: "#f8f8f8",
-                  borderTopWidth: 1,
-                  borderTopColor: "#ddd",
-                  minHeight: 120,
+                  width: 120,
+                  backgroundColor: "#f5f5f5",
+                  borderRightWidth: 1,
+                  borderRightColor: "#ddd",
                 }}
               >
-                <View style={{ flex: 1 }}>
-                  <EntityListPane />
+                {require("./editor/components/ComponentPalette").default()}
+              </View>
+              {/* 中间主区：画布+底部资源区 */}
+              <View style={{ flex: 1, flexDirection: "column", minWidth: 0 }}>
+                <View style={styles.centerPanel}>
+                  <Canvas resourceManager={resourceManager.current} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <ResourceManagerPanel
-                    resourceManager={resourceManager.current}
-                  />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    width: "100%",
+                    backgroundColor: "#f8f8f8",
+                    borderTopWidth: 1,
+                    borderTopColor: "#ddd",
+                    minHeight: 120,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <EntityListPane />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ResourceManagerPanel
+                      resourceManager={resourceManager.current}
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
-            <View style={styles.rightPanel}>
-              <PropertiesPanel />
+              <View style={styles.rightPanel}>
+                <PropertiesPanel />
+              </View>
             </View>
           </View>
         </View>
@@ -84,7 +92,18 @@ const styles = StyleSheet.create({
   },
   editorLayout: {
     flex: 1,
-    flexDirection: "row",
+    flexDirection: "column",
+  },
+  topBar: {
+    height: 200,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#dee2e6",
+    marginBottom: 8,
+  },
+  mainEditorArea: {
+    flex: 1,
+    flexDirection: "column",
   },
   leftPanel: {
     width: 300,

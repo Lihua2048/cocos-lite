@@ -8,8 +8,8 @@ import { updateEntityProperty } from '../../../core/actions';
 
 
 export default function AnimationControls({ entityId, loop: loopProp }: { entityId: string; loop?: boolean }) {
-  const animations = useSelector((state: RootState) => state.animations) || {};
-  const entities = useSelector((state: RootState) => state.entities);
+  const animations = useSelector((state: RootState) => state.editor.animations) || {};
+  const entities = useSelector((state: RootState) => state.editor.entities);
   const entity = entities[entityId];
   const [selectedAnim, setSelectedAnim] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);

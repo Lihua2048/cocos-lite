@@ -21,7 +21,7 @@ export default function ResourceManagerPanel({
   resourceManager
 }: ResourceManagerPanelProps) {
   const dispatch = useDispatch();
-  const textures = useSelector((state: any) => state.textures);
+  const textures = useSelector((state: any) => state.editor.textures);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewTexture, setPreviewTexture] = useState<TextureResource | null>(
     null

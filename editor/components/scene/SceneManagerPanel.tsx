@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
-import { EditorState, SceneData } from '../../../core/types';
+import { RootState, SceneData } from '../../../core/types';
 import { createScene, deleteScene, switchScene, renameScene, saveCurrentScene } from '../../../core/actions';
 import { SceneStorage } from '../../../core/utils/sceneStorage';
 
 export default function SceneManagerPanel() {
   const dispatch = useDispatch();
-  const { scenes, currentSceneId } = useSelector((state: EditorState) => ({
-    scenes: state.scenes,
-    currentSceneId: state.currentSceneId
+  const { scenes, currentSceneId } = useSelector((state: RootState) => ({
+    scenes: state.editor.scenes || {},
+    currentSceneId: state.editor.currentSceneId
   }));
 
   const [newSceneName, setNewSceneName] = useState('');

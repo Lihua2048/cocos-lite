@@ -45,7 +45,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
 
   // 只在初始渲染时获取，后续每帧用 store.getState()
   const store = useStore<RootState>();
-  const animations = useSelector((state: RootState) => state.animations);
+  const animations = useSelector((state: RootState) => state.editor.animations);
   const rendererRef = useRef<WebGLRenderer | null>(null);
 
   // 获取点击位置的实体（复用点击检测逻辑）
@@ -59,7 +59,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     const clickY = (clientY - rect.top) * pixelRatio;
 
     // 每次都用最新 entities
-    const entities: Record<string, Entity> = store.getState().entities;
+    const entities: Record<string, Entity> = store.getState().editor.entities;
     return Object.values(entities).find((entity: Entity) => {
       const { position, properties } = entity;
       const left = position.x;
@@ -118,7 +118,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     const newY = (event.clientY - rect.top) * pixelRatio - dragOffset.y;
 
     // 判断实体是否有物理组件
-    const entities: Record<string, Entity> = store.getState().entities;
+    const entities: Record<string, Entity> = store.getState().editor.entities;
     const entity = entities[draggingEntityId];
     if (!entity) return;
     const hasPhysics = entity.components.some(c => c.type === 'physics');
@@ -277,12 +277,12 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
 
       // 每帧获取最新 entities
       const state = store.getState();
-      const entities: Record<string, Entity> = state.entities;
-      const animations = state.animations;
+      const entities: Record<string, Entity> = state.editor.entities;
+      const animations = state.editor.animations;
 
       // 恢复物理主循环
       // 仅在物理运行状态下 step
-      const physicsRunning = store.getState().physicsRunning;
+      const physicsRunning = store.getState().editor.physicsRunning;
       if (physicsRunning) {
         physicsWorld.step(delta);
       }

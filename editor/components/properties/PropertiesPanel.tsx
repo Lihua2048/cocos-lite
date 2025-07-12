@@ -15,10 +15,10 @@ import "./PropertiesPanel.css";
 
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
-  const selectedEntityId = useSelector((state: RootState) => state.selectedEntityId);
-  const entities = useSelector((state: RootState) => state.entities);
-  const textures = useSelector((state: RootState) => state.textures); // 添加textures选择器
-  const physicsRunning = useSelector((state: RootState) => state.physicsRunning);
+  const selectedEntityId = useSelector((state: RootState) => state.editor.selectedEntityId);
+  const entities = useSelector((state: RootState) => state.editor.entities);
+  const textures = useSelector((state: RootState) => state.editor.textures); // 添加textures选择器
+  const physicsRunning = useSelector((state: RootState) => state.editor.physicsRunning);
   const selectedEntity =
     selectedEntityId && entities[selectedEntityId]
       ? entities[selectedEntityId]

@@ -12,8 +12,10 @@ export interface EditorState {
 
 
 
-export type RootState = EditorState;
-
+export interface RootState {
+  editor: EditorState;
+  projects: ProjectManagerState;
+}
 
 export type SceneActionType =
   | "CREATE_SCENE"
@@ -189,6 +191,111 @@ export function createDefaultEntity(id: string, type: 'sprite' | 'ui-button' | '
       }
     };
   }
+}
+
+// 场景渲染模式
+export type SceneRenderMode = 'overlay' | 'switch' | 'hybrid';
+
+// 场景状态
+export type SceneState = 'unloaded' | 'preloading' | 'loaded' | 'activating' | 'active' | 'pausing' | 'paused' | 'destroying' | 'destroyed';
+
+// 场景层级配置
+export interface SceneLayer {
+  id: string;
+  name: string;
+  zIndex: number;
+  persistent: boolean; // 是否在场景切换时保持
+  visible: boolean;
+  opacity: number;
+}
+
+// 场景转换配置
+export interface SceneTransition {
+  from: string;
+  to: string;
+  type: 'fade' | 'slide' | 'zoom' | 'instant';
+  duration: number;
+  easing?: string;
+}
+
+// 场景配置
+export interface SceneConfig {
+  id: string;
+  name: string;
+  type: 'main' | 'ui' | 'background' | 'sub';
+  layer: SceneLayer;
+  dependencies: string[];
+  loadPriority: number;
+  renderMode: SceneRenderMode;
+  state: SceneState;
+  filePath?: string;
+  thumbnail?: string;
+  lastModified: number;
+  data: SceneData;
+}
+
+// 项目配置
+export interface ProjectConfig {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  author?: string;
+  created: number;
+  lastModified: number;
+  scenes: { [sceneId: string]: SceneConfig };
+  sceneGraph: {
+    layers: SceneLayer[];
+    transitions: SceneTransition[];
+    initialScene: string;
+    currentScene?: string;
+  };
+  buildSettings: {
+    h5: H5BuildConfig;
+    wechat: WechatBuildConfig;
+  };
+  assets: {
+    textures: string[];
+    audio: string[];
+    fonts: string[];
+    scripts: string[];
+  };
+}
+
+// H5构建配置
+export interface H5BuildConfig {
+  outputPath: string;
+  minify: boolean;
+  sourceMap: boolean;
+  optimization: boolean;
+  bundleAnalyzer: boolean;
+}
+
+// 微信小游戏构建配置
+export interface WechatBuildConfig {
+  outputPath: string;
+  appId?: string;
+  minify: boolean;
+  subpackages: boolean;
+  optimization: boolean;
+}
+
+// 项目管理状态
+export interface ProjectManagerState {
+  projects: { [projectId: string]: ProjectConfig };
+  currentProjectId: string | null;
+  recentProjects: string[];
+  projectTemplates: ProjectTemplate[];
+}
+
+// 项目模板
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description: string;
+  preview: string;
+  scenes: Partial<SceneConfig>[];
+  defaultSettings: Partial<ProjectConfig>;
 }
 
 

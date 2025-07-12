@@ -7,7 +7,7 @@ import ResourceManager from '../core/resources/ResourceManager';
  * 构建管理面板组件
  */
 export function BuildManagerPanel() {
-  const scenes = useSelector((state: RootState) => Object.values(state.scenes));
+  const scenes = useSelector((state: RootState) => Object.values(state.editor.scenes || {}));
   const resourceManager = new ResourceManager();
 
   const handleBuildH5 = async () => {
