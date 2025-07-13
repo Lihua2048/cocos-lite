@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Provider } from "react-redux";
+import { Provider, useSelector } from "react-redux";
 import { store } from "./editor/store";
+import { RootState, SceneCompositionMode } from "./core/types";
 
 import Canvas from "./editor/components/canvas/Canvas";
 import PropertiesPanel from "./editor/components/properties/PropertiesPanel";
@@ -22,13 +23,30 @@ import SceneManagerPanel from "./editor/components/scene/SceneManagerPanel";
 import ProjectManagerPanel from "./editor/components/project/ProjectManagerPanel";
 import { BuildManagerPanel } from "./build/BuildManagerPanel";
 import SceneCompositionEditor from "./editor/components/scene/SceneCompositionEditor";
+import SceneCompositionModeSelector from "./editor/components/scene/SceneCompositionModeSelector";
 
 export default function App() {
   const resourceManager = useRef(new ResourceManager());
   const [phase2Initialized, setPhase2Initialized] = useState(false);
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
   const [scenesLoaded, setScenesLoaded] = useState(false);
-  const [showCompositionEditor, setShowCompositionEditor] = useState(false);
+
+  return (
+    <Provider store={store}>
+      <AppContent resourceManager={resourceManager.current} />
+    </Provider>
+  );
+}
+
+function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
+  const [phase2Initialized, setPhase2Initialized] = useState(false);
+  const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
+  const [scenesLoaded, setScenesLoaded] = useState(false);
+
+  // 获取场景组合模式状态
+  const { compositionMode } = useSelector((state: RootState) => ({
+    compositionMode: state.editor.sceneComposition.mode
+  }));
 
   // 初始化场景加载和第二期核心功能
   useEffect(() => {
@@ -83,12 +101,7 @@ export default function App() {
         </View>
 
         <View style={styles.managerSection}>
-          <TouchableOpacity
-            style={styles.compositionButton}
-            onPress={() => setShowCompositionEditor(!showCompositionEditor)}
-          >
-            <Text style={styles.compositionButtonText}>场景组合</Text>
-          </TouchableOpacity>
+          <SceneCompositionModeSelector />
           <ProjectManagerPanel />
           <SceneManagerPanel />
           <BuildManagerPanel />
@@ -111,21 +124,17 @@ export default function App() {
           <View style={styles.leftPanel}>
             <ComponentPalette />
             <EntityListPane />
-            <ResourceManagerPanel resourceManager={resourceManager.current} />
+            <ResourceManagerPanel resourceManager={resourceManager} />
           </View>
 
           {/* 中央画布区域 */}
           <View style={styles.centerPanel}>
-            <Canvas resourceManager={resourceManager.current} />
+            <Canvas resourceManager={resourceManager} />
           </View>
 
           {/* 右侧属性面板 */}
           <View style={styles.rightPanel}>
-            {showCompositionEditor ? (
-              <SceneCompositionEditor />
-            ) : (
-              <PropertiesPanel />
-            )}
+            <PropertiesPanel />
           </View>
         </View>
       </View>
@@ -179,17 +188,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  compositionButton: {
-    backgroundColor: "#ff9800",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  compositionButtonText: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "600",
   },
   mainArea: {
     flex: 1,

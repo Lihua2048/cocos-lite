@@ -6,7 +6,7 @@ import { WebGLRenderer } from "../../../core/2d/webgl-renderer";
 import { physicsWorld } from '../../../core/physics';
 import planck from 'planck-js';
 import { addEntity, removeEntity, selectEntity, updateEntity } from "../../../core/actions";
-import { PhysicsComponent } from '../../../core/types';
+import { PhysicsComponent, SceneCompositionMode } from '../../../core/types';
 import { Entity } from "../../../core/types";
 import { RootState } from "../../../core/types";
 import  ResourceManager  from "../../../core/resources/ResourceManager";
@@ -46,7 +46,12 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
 
   // 只在初始渲染时获取，后续每帧用 store.getState()
   const store = useStore<RootState>();
-  const animations = useSelector((state: RootState) => state.editor.animations);
+  const { animations, sceneComposition, scenes, currentSceneId } = useSelector((state: RootState) => ({
+    animations: state.editor.animations,
+    sceneComposition: state.editor.sceneComposition,
+    scenes: state.editor.scenes,
+    currentSceneId: state.editor.currentSceneId
+  }));
   const rendererRef = useRef<WebGLRenderer | null>(null);
   const animationIdRef = useRef<number>();
 
@@ -60,8 +65,8 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     const clickX = (clientX - rect.left) * pixelRatio;
     const clickY = (clientY - rect.top) * pixelRatio;
 
-    // 每次都用最新 entities
-    const entities: Record<string, Entity> = store.getState().editor.entities;
+    // 使用新的场景组合实体获取方法
+    const entities = getRenderEntities();
     return Object.values(entities).find((entity: Entity) => {
       const { position, properties } = entity;
       const left = position.x;
@@ -120,7 +125,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     const newY = (event.clientY - rect.top) * pixelRatio - dragOffset.y;
 
     // 判断实体是否有物理组件
-    const entities: Record<string, Entity> = store.getState().editor.entities;
+    const entities = getRenderEntities();
     const entity = entities[draggingEntityId];
     if (!entity) return;
     const hasPhysics = entity.components.some(c => c.type === 'physics');
@@ -262,6 +267,63 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     event.preventDefault();
   };
 
+  // 根据场景组合模式获取需要渲染的实体
+  const getRenderEntities = (): Record<string, Entity> => {
+    const { mode, selectedScenes, lockedScenes } = sceneComposition;
+
+
+    switch (mode) {
+      case SceneCompositionMode.DEFAULT:
+        // 默认模式：首先尝试从当前场景获取实体，如果没有则从editor状态获取
+        if (currentSceneId && scenes[currentSceneId] && Object.keys(scenes[currentSceneId].entities).length > 0) {
+          return scenes[currentSceneId].entities;
+        } else {
+          // 回退到editor状态中的实体
+          const editorEntities = store.getState().editor.entities;
+          return editorEntities;
+        }
+
+      case SceneCompositionMode.OVERLAY:
+        // 叠加模式：渲染所有选中场景的实体
+        const overlayEntities: Record<string, Entity> = {};
+        selectedScenes.forEach(sceneId => {
+          if (scenes[sceneId]) {
+            Object.assign(overlayEntities, scenes[sceneId].entities);
+          }
+        });
+        // 如果没有选中场景的实体，回退到editor状态
+        if (Object.keys(overlayEntities).length === 0) {
+          return store.getState().editor.entities;
+        }
+        return overlayEntities;
+
+      case SceneCompositionMode.MIXED:
+        // 混合模式：渲染当前场景 + 锁定场景的实体
+        const mixedEntities: Record<string, Entity> = {};
+
+        // 先添加锁定场景的实体
+        Object.keys(lockedScenes).forEach(sceneId => {
+          if (lockedScenes[sceneId] && scenes[sceneId]) {
+            Object.assign(mixedEntities, scenes[sceneId].entities);
+          }
+        });
+
+        // 再添加当前场景的实体（会覆盖同ID的锁定场景实体）
+        if (currentSceneId && scenes[currentSceneId]) {
+          Object.assign(mixedEntities, scenes[currentSceneId].entities);
+        }
+
+        // 如果没有实体，回退到editor状态
+        if (Object.keys(mixedEntities).length === 0) {
+          return store.getState().editor.entities;
+        }
+        return mixedEntities;
+
+      default:
+        return store.getState().editor.entities;
+    }
+  };
+
   // 多属性关键帧插值函数
   function lerp(a: number, b: number, t: number) {
     return a * (1 - t) + b * t;
@@ -344,8 +406,9 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
         const physicsRunning = store.getState().editor.physicsRunning;
         if (physicsRunning) physicsWorld.step(delta);
 
-        // 获取实体并处理物理同步
-        const entities = Object.values(store.getState().editor.entities);
+        // 获取需要渲染的实体并处理物理同步
+        const renderEntities = getRenderEntities();
+        const entities = Object.values(renderEntities);
         const animations = store.getState().editor.animations;
 
         // 限制dispatch频率，避免无限循环

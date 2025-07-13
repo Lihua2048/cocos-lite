@@ -1,7 +1,7 @@
 // core/reducer.ts
 // core/reducer.ts
 
-import { EditorState, SceneData } from "./types";
+import { EditorState, SceneData, SceneCompositionMode } from "./types";
 import { EditorAction } from "./actions";
 
 // 修复：明确定义 reducer 类型
@@ -25,7 +25,12 @@ const initialState: EditorState = {
     }
   },
   currentSceneId: 'default',
-  sceneHistory: ['default']
+  sceneHistory: ['default'],
+  sceneComposition: {
+    mode: SceneCompositionMode.DEFAULT,
+    selectedScenes: [],
+    lockedScenes: {}
+  }
 };
 
 export function editorReducer(
@@ -557,6 +562,54 @@ export function editorReducer(
               updatedAt: new Date().toISOString()
             }
           }
+        }
+      };
+    }
+
+    // 场景组合相关
+    case 'SET_SCENE_COMPOSITION_MODE': {
+      return {
+        ...state,
+        sceneComposition: {
+          ...state.sceneComposition,
+          mode: action.payload,
+          // 切换模式时重置选中场景
+          selectedScenes: action.payload === SceneCompositionMode.OVERLAY ? Object.keys(state.scenes) : []
+        }
+      };
+    }
+
+    case 'SET_SELECTED_SCENES': {
+      return {
+        ...state,
+        sceneComposition: {
+          ...state.sceneComposition,
+          selectedScenes: action.payload
+        }
+      };
+    }
+
+    case 'TOGGLE_SCENE_LOCK': {
+      const sceneId = action.payload;
+      return {
+        ...state,
+        sceneComposition: {
+          ...state.sceneComposition,
+          lockedScenes: {
+            ...state.sceneComposition.lockedScenes,
+            [sceneId]: !state.sceneComposition.lockedScenes[sceneId]
+          }
+        }
+      };
+    }
+
+    case 'RESET_SCENE_COMPOSITION': {
+      return {
+        ...state,
+        sceneComposition: {
+          mode: SceneCompositionMode.DEFAULT,
+          selectedScenes: [],
+          lockedScenes: {}
         }
       };
     }

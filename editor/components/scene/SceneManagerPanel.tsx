@@ -2,23 +2,51 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { RootState, SceneData } from '../../../core/types';
-import { createScene, deleteScene, switchScene, renameScene, saveCurrentScene } from '../../../core/actions';
+import { RootState, SceneData, SceneCompositionMode } from '../../../core/types';
+import {
+  createScene,
+  deleteScene,
+  switchScene,
+  renameScene,
+  saveCurrentScene,
+  setSelectedScenes,
+  toggleSceneLock
+} from '../../../core/actions';
 import { SceneStorage } from '../../../core/utils/sceneStorage';
 
 export default function SceneManagerPanel() {
   const dispatch = useDispatch();
-  const { scenes, currentSceneId } = useSelector((state: RootState) => ({
+  const { scenes, currentSceneId, sceneComposition } = useSelector((state: RootState) => ({
     scenes: state.editor.scenes || {},
-    currentSceneId: state.editor.currentSceneId
+    currentSceneId: state.editor.currentSceneId,
+    sceneComposition: state.editor.sceneComposition
   }));
 
   const sceneList = Object.values(scenes);
+  const { mode, selectedScenes, lockedScenes } = sceneComposition;
 
-  // 切换场景
+  // 切换场景 - 根据组合模式处理
   const handleSwitchScene = (sceneId: string) => {
-    if (sceneId === currentSceneId) return;
-    dispatch(switchScene(sceneId));
+    if (mode === SceneCompositionMode.DEFAULT) {
+      // 默认模式：单场景切换
+      if (sceneId === currentSceneId) return;
+      dispatch(switchScene(sceneId));
+    }
+  };
+
+  // 叠加模式：多选场景处理
+  const handleSceneMultiSelect = (sceneId: string) => {
+    if (mode === SceneCompositionMode.OVERLAY) {
+      const newSelectedScenes = selectedScenes.includes(sceneId)
+        ? selectedScenes.filter(id => id !== sceneId)
+        : [...selectedScenes, sceneId];
+      dispatch(setSelectedScenes(newSelectedScenes));
+    }
+  };
+
+  // 混合模式：切换锁定状态
+  const handleToggleLock = (sceneId: string) => {
+    dispatch(toggleSceneLock(sceneId));
   };
 
   // 创建场景的简化方法
@@ -30,10 +58,11 @@ export default function SceneManagerPanel() {
     }
   };
 
-  return (
-    <View style={styles.compactContainer}>
-      <Text style={styles.compactLabel}>场景</Text>
-      <View style={styles.compactControls}>
+  // 渲染场景选择器 - 根据模式不同显示不同UI
+  const renderSceneSelector = () => {
+    if (mode === SceneCompositionMode.DEFAULT) {
+      // 默认模式：单选下拉框
+      return (
         <Picker
           selectedValue={currentSceneId || ''}
           onValueChange={handleSwitchScene}
@@ -48,6 +77,75 @@ export default function SceneManagerPanel() {
             />
           ))}
         </Picker>
+      );
+    } else if (mode === SceneCompositionMode.OVERLAY) {
+      // 叠加模式：多选列表
+      return (
+        <View style={styles.multiSelectContainer}>
+          {sceneList.map(scene => (
+            <TouchableOpacity
+              key={scene.id}
+              style={[
+                styles.sceneOption,
+                selectedScenes.includes(scene.id) && styles.sceneOptionSelected
+              ]}
+              onPress={() => handleSceneMultiSelect(scene.id)}
+            >
+              <Text style={[
+                styles.sceneOptionText,
+                selectedScenes.includes(scene.id) && styles.sceneOptionTextSelected
+              ]}>
+                {scene.name}
+              </Text>
+              {selectedScenes.includes(scene.id) && (
+                <Text style={styles.checkmark}>✓</Text>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    } else if (mode === SceneCompositionMode.MIXED) {
+      // 混合模式：带锁定状态的列表
+      return (
+        <View style={styles.mixedModeContainer}>
+          <Picker
+            selectedValue={currentSceneId || ''}
+            onValueChange={handleSwitchScene}
+            style={styles.compactPicker}
+          >
+            <Picker.Item label="选择场景..." value="" />
+            {sceneList.map(scene => (
+              <Picker.Item
+                key={scene.id}
+                label={`${scene.name} ${lockedScenes[scene.id] ? '🔒' : '🔓'}`}
+                value={scene.id}
+              />
+            ))}
+          </Picker>
+          <View style={styles.lockControls}>
+            {sceneList.map(scene => (
+              <TouchableOpacity
+                key={scene.id}
+                style={styles.lockButton}
+                onPress={() => handleToggleLock(scene.id)}
+              >
+                <Text style={styles.lockIcon}>
+                  {lockedScenes[scene.id] ? '🔒' : '🔓'}
+                </Text>
+                <Text style={styles.lockLabel}>{scene.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+  };
+
+  return (
+    <View style={styles.compactContainer}>
+      <Text style={styles.compactLabel}>场景</Text>
+      <View style={styles.compactControls}>
+        {renderSceneSelector()}
         <TouchableOpacity
           style={styles.compactAddButton}
           onPress={handleCreateScene}
@@ -96,5 +194,65 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  // 叠加模式多选样式
+  multiSelectContainer: {
+    maxWidth: 200,
+    maxHeight: 120,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    padding: 4,
+  },
+  sceneOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 6,
+    borderRadius: 3,
+    marginBottom: 2,
+  },
+  sceneOptionSelected: {
+    backgroundColor: '#007bff',
+  },
+  sceneOptionText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  sceneOptionTextSelected: {
+    color: '#fff',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  // 混合模式样式
+  mixedModeContainer: {
+    flexDirection: 'column',
+  },
+  lockControls: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    maxWidth: 200,
+  },
+  lockButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 2,
+    marginRight: 4,
+    marginBottom: 2,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 3,
+  },
+  lockIcon: {
+    fontSize: 12,
+    marginRight: 2,
+  },
+  lockLabel: {
+    fontSize: 10,
+    color: '#666',
   },
 });
