@@ -11,10 +11,13 @@
     "build:h5": "cd build && npm run build:h5",
     "build:wechat": "cd build && npm run build:wechat",
     "preview:h5": "cd build && npm run preview:h5",
-    "build:install": "cd build && npm install"
+    "build:install": "cd build && npm install",
+    "phase2:launch": "node scripts/launch-phase2.js",
+    "phase2:info": "echo '🎉 第二期核心功能已全部实现完成！请查看 README-Phase2.md 了解详情，运行 npm start 启动应用'"
   },
   "dependencies": {
     "@babel/runtime": "^7.23.9",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native-picker/picker": "^2.11.1",
     "@reduxjs/toolkit": "^2.8.2",
     "@types/react-redux": "^7.1.34",

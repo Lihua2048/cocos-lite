@@ -273,12 +273,7 @@ export class WebGLRenderer {
   }
 
   private isInitialized(): boolean {
-    return (
-      !!this.gl &&
-      !!this.shaderProgram &&
-      !!this.vertexBuffer &&
-      !!this.entityVertexBuffer
-    );
+    return !!this.gl;
   }
 
   // 加载纹理
@@ -347,12 +342,8 @@ export class WebGLRenderer {
   }
   // 新增参数 animations, currentTimes
   render(entities: Entity[], animations?: Record<string, Animation>, entityAnimationState?: Record<string, { currentAnimation?: string; currentTime: number }>) {
-    if (!this.isInitialized()) {
-      console.warn("WebGL resources not initialized");
-      return;
-    }
     if (!this.gl || !this.shaderProgram || !this.vertexBuffer) {
-      console.warn("WebGL resources not initialized");
+      // WebGL not ready, skip rendering
       return;
     }
 
@@ -383,6 +374,13 @@ export class WebGLRenderer {
       currentWidth !== this.lastCanvasSize.width ||
       currentHeight !== this.lastCanvasSize.height
     ) {
+      // 更新Canvas物理尺寸
+      canvas.width = currentWidth;
+      canvas.height = currentHeight;
+
+      // 更新WebGL视口
+      gl.viewport(0, 0, currentWidth, currentHeight);
+
       // 更新投影矩阵
       mat4.ortho(
         this.projectionMatrix,
@@ -422,6 +420,8 @@ export class WebGLRenderer {
         console.warn("Invalid entity:", entity);
         return;
       }
+
+ 
       // 动画插值部分
       let x = entity.position.x || 0;
       let y = entity.position.y || 0;
@@ -499,6 +499,8 @@ export class WebGLRenderer {
         x, y + height, 0.0, 1.0,
         x + width, y + height, 1.0, 1.0,
       ]);
+
+
       gl.bufferData(gl.ARRAY_BUFFER, entityVertices, gl.STATIC_DRAW);
       const positionAttributeLocation = gl.getAttribLocation(shaderProgram, "a_position");
       gl.enableVertexAttribArray(positionAttributeLocation);

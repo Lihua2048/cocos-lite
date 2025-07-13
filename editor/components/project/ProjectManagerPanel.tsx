@@ -107,47 +107,29 @@ export default function ProjectManagerPanel({}: ProjectManagerPanelProps) {
   if (showCreateDialog) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>创建新项目</Text>
+        <View style={styles.compactHeader}>
+          <Text style={styles.compactTitle}>创建新项目</Text>
           <TouchableOpacity
-            style={styles.cancelButton}
+            style={styles.compactCloseButton}
             onPress={() => setShowCreateDialog(false)}
           >
-            <Text style={styles.cancelButtonText}>取消</Text>
+            <Text style={styles.compactCloseText}>✕</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.createForm}>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>项目名称 *</Text>
+        <View style={styles.compactForm}>
+          <View style={styles.formRow}>
             <TextInput
-              style={styles.input}
+              style={styles.compactInput}
               value={newProjectName}
               onChangeText={setNewProjectName}
-              placeholder="输入项目名称"
+              placeholder="项目名称"
               maxLength={50}
             />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>项目描述</Text>
-            <TextInput
-              style={[styles.input, styles.multilineInput]}
-              value={newProjectDescription}
-              onChangeText={setNewProjectDescription}
-              placeholder="输入项目描述（可选）"
-              multiline
-              numberOfLines={3}
-              maxLength={200}
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>项目模板</Text>
             <Picker
               selectedValue={selectedTemplate}
               onValueChange={setSelectedTemplate}
-              style={styles.picker}
+              style={styles.compactPicker}
             >
               {templates.map(template => (
                 <Picker.Item
@@ -157,320 +139,182 @@ export default function ProjectManagerPanel({}: ProjectManagerPanelProps) {
                 />
               ))}
             </Picker>
-            {templates.find(t => t.id === selectedTemplate) && (
-              <Text style={styles.templateDescription}>
-                {templates.find(t => t.id === selectedTemplate)?.description}
-              </Text>
-            )}
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleCreateProject}
+            >
+              <Text style={styles.primaryButtonText}>创建</Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={handleCreateProject}
-          >
-            <Text style={styles.createButtonText}>创建项目</Text>
-          </TouchableOpacity>
-        </ScrollView>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>项目管理</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowCreateDialog(true)}
-        >
-          <Text style={styles.addButtonText}>+ 新建项目</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.currentProject}>
-        <Text style={styles.sectionTitle}>当前项目</Text>
-        {currentProject ? (
-          <View style={styles.projectCard}>
-            <Text style={styles.projectName}>{currentProject.name}</Text>
-            <Text style={styles.projectInfo}>
-              版本: {currentProject.version} |
-              场景: {Object.keys(currentProject.scenes).length} |
-              修改: {formatDate(currentProject.lastModified)}
+      <View style={styles.compactHeader}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.compactTitle}>项目管理</Text>
+          {currentProject && (
+            <Text style={styles.currentProjectName}>
+              {currentProject.name} ({Object.keys(currentProject.scenes).length}场景)
             </Text>
-            {currentProject.description && (
-              <Text style={styles.projectDescription}>{currentProject.description}</Text>
-            )}
-          </View>
-        ) : (
-          <Text style={styles.noProject}>未选择项目</Text>
-        )}
-      </View>
-
-      <View style={styles.projectSelector}>
-        <Text style={styles.sectionTitle}>切换项目</Text>
-        <Picker
-          selectedValue={currentProject?.id || ''}
-          onValueChange={handleProjectSwitch}
-          style={styles.picker}
-        >
-          <Picker.Item label="选择项目..." value="" />
-          {projects.map(project => (
-            <Picker.Item
-              key={project.id}
-              label={`${project.name} (${Object.keys(project.scenes).length} 场景)`}
-              value={project.id}
-            />
-          ))}
-        </Picker>
-      </View>
-
-      <View style={styles.projectList}>
-        <Text style={styles.sectionTitle}>所有项目</Text>
-        <ScrollView style={styles.projectScrollView}>
-          {projects.map(project => (
-            <View key={project.id} style={styles.projectItem}>
-              <View style={styles.projectInfo}>
-                <Text style={styles.projectItemName}>{project.name}</Text>
-                <Text style={styles.projectItemDetails}>
-                  {Object.keys(project.scenes).length} 场景 | {formatDate(project.lastModified)}
-                </Text>
-                {project.description && (
-                  <Text style={styles.projectItemDescription}>{project.description}</Text>
-                )}
-              </View>
-              <View style={styles.projectActions}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.selectButton]}
-                  onPress={() => handleProjectSwitch(project.id)}
-                >
-                  <Text style={styles.actionButtonText}>选择</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.exportButton]}
-                  onPress={() => handleExportProject(project.id)}
-                >
-                  <Text style={styles.actionButtonText}>导出</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.deleteButton]}
-                  onPress={() => handleDeleteProject(project.id)}
-                >
-                  <Text style={styles.actionButtonText}>删除</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-          {projects.length === 0 && (
-            <Text style={styles.emptyMessage}>暂无项目，点击"新建项目"开始创建</Text>
           )}
-        </ScrollView>
+        </View>
+        <View style={styles.headerRight}>
+          <Picker
+            selectedValue={currentProject?.id || ''}
+            onValueChange={handleProjectSwitch}
+            style={styles.projectPicker}
+          >
+            <Picker.Item label="选择项目..." value="" />
+            {projects.map(project => (
+              <Picker.Item
+                key={project.id}
+                label={project.name}
+                value={project.id}
+              />
+            ))}
+          </Picker>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => setShowCreateDialog(true)}
+          >
+            <Text style={styles.primaryButtonText}>+ 新建</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {projects.length > 0 && (
+        <View style={styles.projectStats}>
+          <Text style={styles.statsText}>
+            共 {projects.length} 个项目 •
+            最近修改: {currentProject ? formatDate(currentProject.lastModified) : '无'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#495057',
-  },
-  addButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  addButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  cancelButton: {
-    backgroundColor: '#6c757d',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  cancelButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  currentProject: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#495057',
-    marginBottom: 8,
-  },
-  projectCard: {
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
+    backgroundColor: '#ffffff',
+    borderRadius: 6,
+    margin: 4,
+    padding: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
   },
-  projectName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#212529',
-    marginBottom: 4,
-  },
-  projectInfo: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginBottom: 4,
-  },
-  projectDescription: {
-    fontSize: 12,
-    color: '#495057',
-    fontStyle: 'italic',
-  },
-  noProject: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 20,
-  },
-  projectSelector: {
-    marginBottom: 16,
-  },
-  picker: {
-    backgroundColor: 'white',
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#ced4da',
-  },
-  projectList: {
-    flex: 1,
-  },
-  projectScrollView: {
-    flex: 1,
-  },
-  projectItem: {
-    backgroundColor: 'white',
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
+
+  // Compact header styles
+  compactHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  projectItemName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#212529',
-    marginBottom: 2,
-  },
-  projectItemDetails: {
-    fontSize: 11,
-    color: '#6c757d',
-    marginBottom: 2,
-  },
-  projectItemDescription: {
-    fontSize: 11,
-    color: '#495057',
-    fontStyle: 'italic',
-  },
-  projectActions: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  actionButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    minWidth: 40,
-    alignItems: 'center',
-  },
-  selectButton: {
-    backgroundColor: '#28a745',
-  },
-  exportButton: {
-    backgroundColor: '#17a2b8',
-  },
-  deleteButton: {
-    backgroundColor: '#dc3545',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '500',
-  },
-  emptyMessage: {
-    fontSize: 14,
-    color: '#6c757d',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    padding: 20,
-  },
-  createForm: {
+  headerLeft: {
     flex: 1,
   },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#495057',
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    color: '#495057',
-  },
-  multilineInput: {
-    height: 60,
-    textAlignVertical: 'top',
-  },
-  templateDescription: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  createButton: {
-    backgroundColor: '#007bff',
-    padding: 12,
-    borderRadius: 8,
+  headerRight: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  compactTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  currentProjectName: {
+    fontSize: 11,
+    color: '#666',
+  },
+
+  // Form styles
+  compactForm: {
+    padding: 8,
+  },
+  formRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactInput: {
+    flex: 2,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 12,
+    height: 32,
+  },
+  compactPicker: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    height: 32,
+  },
+  projectPicker: {
+    minWidth: 120,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    height: 32,
+  },
+
+  // Button styles
+  primaryButton: {
+    backgroundColor: '#007bff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  compactCloseButton: {
+    backgroundColor: '#dc3545',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactCloseText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
+  // Stats section
+  projectStats: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
     marginTop: 8,
   },
-  createButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  statsText: {
+    fontSize: 10,
+    color: '#888',
+    textAlign: 'center',
   },
 });

@@ -16,10 +16,11 @@ export default function SceneManagerPanel() {
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
+  const sceneList = Object.values(scenes);
+
   // 创建新场景
   const handleCreateScene = () => {
     if (!newSceneName.trim()) return;
-
     const id = `scene_${Date.now()}`;
     dispatch(createScene(id, newSceneName.trim()));
     setNewSceneName('');
@@ -60,98 +61,68 @@ export default function SceneManagerPanel() {
     SceneStorage.exportScenesAsFile(scenes);
   };
 
-  // 导入场景
-  const handleImportScenes = async () => {
-    const importedScenes = await SceneStorage.importScenesFromFile();
-    if (importedScenes) {
-      // 这里需要dispatch一个导入action
-      console.log('Imported scenes:', importedScenes);
-    }
-  };
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>场景管理</Text>
+      {/* 头部信息 */}
+      <View style={styles.header}>
+        <Text style={styles.title}>场景</Text>
+        <Text style={styles.sceneCount}>{sceneList.length} 个场景</Text>
+      </View>
 
       {/* 创建新场景 */}
       <View style={styles.createSection}>
         <TextInput
-          style={styles.input}
-          placeholder="输入场景名称"
+          style={styles.createInput}
+          placeholder="新场景名称"
           value={newSceneName}
           onChangeText={setNewSceneName}
+          maxLength={30}
         />
-        <TouchableOpacity style={styles.button} onPress={handleCreateScene}>
-          <Text style={styles.buttonText}>创建场景</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 操作按钮 */}
-      <View style={styles.actionsSection}>
-        <TouchableOpacity style={styles.actionButton} onPress={handleSaveCurrentScene}>
-          <Text style={styles.actionButtonText}>保存当前场景</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={handleExportScenes}>
-          <Text style={styles.actionButtonText}>导出场景</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={handleImportScenes}>
-          <Text style={styles.actionButtonText}>导入场景</Text>
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={handleCreateScene}
+          disabled={!newSceneName.trim()}
+        >
+          <Text style={styles.createButtonText}>+</Text>
         </TouchableOpacity>
       </View>
 
       {/* 场景列表 */}
       <View style={styles.sceneList}>
-        {Object.values(scenes).map((scene) => (
+        {sceneList.map((scene) => (
           <View key={scene.id} style={[
             styles.sceneItem,
             scene.id === currentSceneId && styles.activeScene
           ]}>
-            {editingSceneId === scene.id ? (
-              <View style={styles.editingRow}>
-                <TextInput
-                  style={styles.editInput}
-                  value={editingName}
-                  onChangeText={setEditingName}
-                  onBlur={() => handleRenameScene(scene.id)}
-                  autoFocus
-                />
+            <TouchableOpacity
+              style={styles.sceneMain}
+              onPress={() => handleSwitchScene(scene.id)}
+            >
+              <View style={styles.sceneIndicator} />
+              <View style={styles.sceneContent}>
+                <Text style={styles.sceneName}>{scene.name}</Text>
+                <Text style={styles.sceneInfo}>
+                  {scene.metadata.entityCount || 0} 实体
+                </Text>
               </View>
-            ) : (
-              <View style={styles.sceneRow}>
+            </TouchableOpacity>
+
+            <View style={styles.sceneActions}>
+              {scene.id !== currentSceneId && (
                 <TouchableOpacity
-                  style={styles.sceneInfo}
-                  onPress={() => handleSwitchScene(scene.id)}
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteScene(scene.id)}
                 >
-                  <Text style={styles.sceneName}>{scene.name}</Text>
-                  <Text style={styles.sceneInfo}>
-                    实体数: {scene.metadata.entityCount}
-                  </Text>
+                  <Text style={styles.deleteButtonText}>×</Text>
                 </TouchableOpacity>
-
-                <View style={styles.sceneActions}>
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => {
-                      setEditingSceneId(scene.id);
-                      setEditingName(scene.name);
-                    }}
-                  >
-                    <Text style={styles.editButtonText}>重命名</Text>
-                  </TouchableOpacity>
-
-                  {scene.id !== currentSceneId && (
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteScene(scene.id)}
-                    >
-                      <Text style={styles.deleteButtonText}>删除</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            )}
+              )}
+            </View>
           </View>
         ))}
+
+        {sceneList.length === 0 && (
+          <Text style={styles.emptyText}>暂无场景</Text>
+        )}
       </View>
     </View>
   );
@@ -159,111 +130,133 @@ export default function SceneManagerPanel() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: '#f5f5f5'
+    backgroundColor: '#ffffff',
+    borderRadius: 6,
+    margin: 4,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+
+  // Header styles
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
   },
+  sceneCount: {
+    fontSize: 11,
+    color: '#666',
+  },
+
+  // Create section
   createSection: {
     flexDirection: 'row',
-    marginBottom: 15
+    marginTop: 8,
+    marginBottom: 8,
+    gap: 6,
   },
-  input: {
+  createInput: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 4,
-    padding: 8,
-    marginRight: 8,
-    backgroundColor: 'white'
-  },
-  button: {
-    backgroundColor: '#007bff',
-    padding: 10,
-    borderRadius: 4
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 14
-  },
-  actionsSection: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    gap: 5
-  },
-  actionButton: {
-    backgroundColor: '#28a745',
-    padding: 8,
-    borderRadius: 4,
-    flex: 1
-  },
-  actionButtonText: {
-    color: 'white',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     fontSize: 12,
-    textAlign: 'center'
+    height: 32,
   },
+  createButton: {
+    backgroundColor: '#28a745',
+    width: 32,
+    height: 32,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  // Scene list
   sceneList: {
-    flex: 1
+    flex: 1,
   },
   sceneItem: {
-    backgroundColor: 'white',
-    padding: 10,
-    marginBottom: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginBottom: 2,
     borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#ddd'
+    backgroundColor: '#f8f9fa',
   },
   activeScene: {
-    borderColor: '#007bff',
-    backgroundColor: '#e3f2fd'
+    backgroundColor: '#e3f2fd',
+    borderWidth: 1,
+    borderColor: '#2196f3',
   },
-  sceneRow: {
+  sceneMain: {
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
   },
-  sceneInfo: {
-    flex: 1
+  sceneIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#28a745',
+    marginRight: 8,
+  },
+  sceneContent: {
+    flex: 1,
   },
   sceneName: {
-    fontSize: 16,
-    fontWeight: 'bold'
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#333',
+  },
+  sceneInfo: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 1,
   },
   sceneActions: {
     flexDirection: 'row',
-    gap: 5
-  },
-  editButton: {
-    backgroundColor: '#ffc107',
-    padding: 5,
-    borderRadius: 3
-  },
-  editButtonText: {
-    color: 'white',
-    fontSize: 12
+    alignItems: 'center',
   },
   deleteButton: {
     backgroundColor: '#dc3545',
-    padding: 5,
-    borderRadius: 3
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   deleteButtonText: {
     color: 'white',
-    fontSize: 12
+    fontSize: 12,
+    fontWeight: 'bold',
   },
-  editingRow: {
-    flexDirection: 'row'
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 12,
+    fontStyle: 'italic',
+    paddingVertical: 20,
   },
-  editInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#007bff',
-    borderRadius: 3,
-    padding: 5,
-    backgroundColor: 'white'
-  }
 });

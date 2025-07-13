@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../core/types';
 
 export default function EntityListPane() {
-  const entities = useSelector((state: RootState) => Object.values(state.editor.entities || {}));
+  const entitiesObject = useSelector((state: RootState) => state.editor.entities);
+  const entities = useMemo(() => Object.values(entitiesObject || {}), [entitiesObject]);
 
   return (
     <View style={styles.container}>

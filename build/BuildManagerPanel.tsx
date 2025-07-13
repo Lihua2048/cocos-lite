@@ -1,140 +1,248 @@
-import { GameBuilder } from './GameBuilder';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
+import { GameBuilder } from './GameBuilder';
 import { RootState } from '../core/types';
 import ResourceManager from '../core/resources/ResourceManager';
+import { phase2CoreManager } from '../core/phase2/Phase2CoreManager';
+import { BuildPlatform, BuildMode } from '../core/build/ProjectBuildSystem';
 
 /**
  * 构建管理面板组件
  */
 export function BuildManagerPanel() {
-  const scenes = useSelector((state: RootState) => Object.values(state.editor.scenes || {}));
+  const scenesObject = useSelector((state: RootState) => state.editor.scenes);
+  const scenes = useMemo(() => Object.values(scenesObject || {}), [scenesObject]);
+  const currentProject = useSelector((state: RootState) => {
+    const projectId = state.projects?.currentProjectId;
+    return projectId ? state.projects?.projects[projectId] : null;
+  });
   const resourceManager = new ResourceManager();
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [autoBuildEnabled, setAutoBuildEnabled] = useState(false);
+  const [lastBuildTime, setLastBuildTime] = useState<number>(0);
+
+  // 自动构建功能
+  useEffect(() => {
+    if (!autoBuildEnabled) return;
+
+    const checkForChanges = () => {
+      const now = Date.now();
+      // 检查是否有场景更新（简单的时间戳比较）
+      if (scenes.length > 0 && now - lastBuildTime > 30000) { // 30秒后重新构建
+        handleAutoBuild();
+      }
+    };
+
+    const interval = setInterval(checkForChanges, 5000); // 每5秒检查一次
+    return () => clearInterval(interval);
+  }, [autoBuildEnabled, scenes, lastBuildTime]);
+
+  const handleAutoBuild = async () => {
+    if (isBuilding) return;
+
+    try {
+      setIsBuilding(true);
+      // 使用 Phase2 构建系统进行自动构建
+      await phase2CoreManager.buildProject(BuildPlatform.WEB, BuildMode.DEBUG);
+      setLastBuildTime(Date.now());
+    } catch (error) {
+      console.error('自动构建失败:', error);
+    } finally {
+      setIsBuilding(false);
+    }
+  };
 
   const handleBuildH5 = async () => {
+    if (isBuilding) return;
+
     try {
+      setIsBuilding(true);
       console.log('开始构建 H5 游戏...');
 
       const builder = new GameBuilder(scenes, resourceManager, './game/h5');
       const result = await builder.buildH5Game();
 
-      // 写入文件
-      await writeGameFiles('h5', result);
-
-      alert('H5 游戏构建成功！文件已生成到 /game/h5 目录');
+      Alert.alert('成功', 'H5 游戏构建成功！');
     } catch (error) {
       console.error('H5 构建失败:', error);
-      alert(`H5 构建失败: ${error instanceof Error ? error.message : String(error)}`);
+      Alert.alert('错误', `H5 构建失败: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsBuilding(false);
     }
   };
 
   const handleBuildWechat = async () => {
+    if (isBuilding) return;
+
     try {
+      setIsBuilding(true);
       console.log('开始构建微信小游戏...');
 
       const builder = new GameBuilder(scenes, resourceManager, './game/wechat');
       const result = await builder.buildWechatGame();
 
-      // 写入文件
-      await writeGameFiles('wechat', result);
-
-      alert('微信小游戏构建成功！文件已生成到 /game/wechat 目录');
+      Alert.alert('成功', '微信小游戏构建成功！');
     } catch (error) {
       console.error('微信小游戏构建失败:', error);
-      alert(`微信小游戏构建失败: ${error instanceof Error ? error.message : String(error)}`);
+      Alert.alert('错误', `微信小游戏构建失败: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsBuilding(false);
     }
   };
 
   const handlePreviewH5 = () => {
-    // 打开 H5 预览
-    const previewUrl = './game/h5/index.html';
-    window.open(previewUrl, '_blank');
+    console.log('预览 H5 游戏');
   };
 
-  const handleOpenGameDir = () => {
-    // 在文件管理器中打开游戏目录
-    console.log('打开游戏目录: ./game/');
-  };
+  return (
+    <View style={styles.container}>
+      {/* 头部信息 */}
+      <View style={styles.header}>
+        <Text style={styles.title}>构建</Text>
+        {currentProject && (
+          <Text style={styles.projectInfo}>
+            {currentProject.name} • {scenes.length} 场景
+          </Text>
+        )}
+      </View>
 
-  return `
-    <div style="padding: 16px; border: 1px solid #ddd; margin: 8px; background: #f9f9f9;">
-      <h3>游戏构建与发布</h3>
+      {/* 自动构建开关 */}
+      <View style={styles.autoSection}>
+        <Text style={styles.autoLabel}>自动构建</Text>
+        <Switch
+          value={autoBuildEnabled}
+          onValueChange={setAutoBuildEnabled}
+          trackColor={{ false: '#767577', true: '#81b0ff' }}
+          thumbColor={autoBuildEnabled ? '#f5dd4b' : '#f4f3f4'}
+        />
+      </View>
 
-      <div style="margin-bottom: 16px;">
-        <h4>构建目标平台</h4>
-        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <button onclick="handleBuildH5()" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            构建 H5 游戏
-          </button>
-          <button onclick="handleBuildWechat()" style="padding: 8px 16px; background: #00C851; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            构建微信小游戏
-          </button>
-        </div>
-      </div>
+      {/* 构建按钮 */}
+      <View style={styles.buildSection}>
+        <TouchableOpacity
+          style={[styles.buildButton, styles.h5Button, isBuilding && styles.disabledButton]}
+          onPress={handleBuildH5}
+          disabled={isBuilding}
+        >
+          <Text style={styles.buildButtonText}>
+            {isBuilding ? '构建中...' : 'H5'}
+          </Text>
+        </TouchableOpacity>
 
-      <div style="margin-bottom: 16px;">
-        <h4>预览与测试</h4>
-        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <button onclick="handlePreviewH5()" style="padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            预览 H5 游戏
-          </button>
-          <button onclick="handleOpenGameDir()" style="padding: 8px 16px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            打开游戏目录
-          </button>
-        </div>
-      </div>
+        <TouchableOpacity
+          style={[styles.buildButton, styles.wechatButton, isBuilding && styles.disabledButton]}
+          onPress={handleBuildWechat}
+          disabled={isBuilding}
+        >
+          <Text style={styles.buildButtonText}>
+            {isBuilding ? '构建中...' : '微信'}
+          </Text>
+        </TouchableOpacity>
 
-      <div>
-        <h4>构建信息</h4>
-        <p>场景数量: ${scenes.length}</p>
-        <p>输出目录: ./game/</p>
-        <p>支持平台: H5、微信小游戏</p>
-      </div>
-    </div>
-  `;
+        <TouchableOpacity
+          style={[styles.buildButton, styles.previewButton]}
+          onPress={handlePreviewH5}
+        >
+          <Text style={styles.buildButtonText}>预览</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 构建信息 */}
+      {scenes.length === 0 && (
+        <Text style={styles.emptyText}>
+          暂无场景可构建
+        </Text>
+      )}
+    </View>
+  );
 }
 
-/**
- * 写入游戏文件到指定目录
- */
-async function writeGameFiles(platform: 'h5' | 'wechat', buildResult: any): Promise<void> {
-  const fs = require('fs').promises;
-  const path = require('path');
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#ffffff',
+    borderRadius: 6,
+    margin: 4,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
 
-  const outputDir = `./game/${platform}`;
+  // Header styles
+  header: {
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  projectInfo: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+  },
 
-  // 确保输出目录存在
-  await fs.mkdir(outputDir, { recursive: true });
-  await fs.mkdir(`${outputDir}/runtime`, { recursive: true });
-  await fs.mkdir(`${outputDir}/data`, { recursive: true });
-  await fs.mkdir(`${outputDir}/assets`, { recursive: true });
+  // Auto build section
+  autoSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  autoLabel: {
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '500',
+  },
 
-  // 写入主要文件
-  await fs.writeFile(`${outputDir}/game.js`, buildResult.gameRuntime);
-  await fs.writeFile(`${outputDir}/data/scenes.json`, buildResult.sceneDataFile);
+  // Build section
+  buildSection: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 6,
+  },
+  buildButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32,
+  },
+  h5Button: {
+    backgroundColor: '#4CAF50',
+  },
+  wechatButton: {
+    backgroundColor: '#00C851',
+  },
+  previewButton: {
+    backgroundColor: '#2196F3',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+  },
+  buildButtonText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
+  },
 
-  if (platform === 'h5') {
-    await fs.writeFile(`${outputDir}/index.html`, buildResult.htmlTemplate);
-    await fs.writeFile(`${outputDir}/build-config.json`, JSON.stringify(buildResult.buildConfig, null, 2));
-  } else {
-    await fs.writeFile(`${outputDir}/game.json`, buildResult.gameConfig);
-    await fs.writeFile(`${outputDir}/adapter.js`, buildResult.adapter);
-  }
-
-  // 复制运行时文件
-  const runtimeFiles = [
-    '../build/runtime/RuntimeSceneManager.ts',
-    '../build/runtime/GameLoop.ts',
-    '../core/2d/webgl-renderer.ts',
-    '../core/physics/PhysicsWorld.ts'
-  ];
-
-  for (const file of runtimeFiles) {
-    const fileName = path.basename(file);
-    const content = await fs.readFile(file, 'utf8');
-    await fs.writeFile(`${outputDir}/runtime/${fileName}`, content);
-  }
-
-  console.log(`${platform} 游戏文件写入完成: ${outputDir}`);
-}
+  // Empty state
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 11,
+    fontStyle: 'italic',
+    paddingVertical: 12,
+  },
+});
 
 export default BuildManagerPanel;

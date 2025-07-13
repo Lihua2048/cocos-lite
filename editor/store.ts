@@ -1,10 +1,10 @@
 import { configureStore, Middleware, combineReducers } from '@reduxjs/toolkit';
 import { editorReducer } from '../core/reducer';
 import { projectReducer } from '../core/reducers/projectReducer';
-import { SceneStorage } from '../core/utils/sceneStorage';
+import { CrossPlatformStorage } from '../core/utils/CrossPlatformStorage';
 
-// 从本地存储加载场景数据
-const loadedScenes = SceneStorage.loadFromLocalStorage();
+// 初始化时不直接加载，而是使用默认状态
+// 场景数据将在应用启动后异步加载
 
 const initialState = {
   entities: {},
@@ -12,8 +12,8 @@ const initialState = {
   textures: [],
   animations: {},
   physicsRunning: true,
-  // 如果有保存的场景数据则使用，否则使用默认场景
-  scenes: loadedScenes || {
+  // 使用默认场景，实际数据将在应用启动后异步加载
+  scenes: {
     'default': {
       id: 'default',
       name: '默认场景',
@@ -26,15 +26,15 @@ const initialState = {
       }
     }
   },
-  currentSceneId: loadedScenes ? Object.keys(loadedScenes)[0] : 'default',
-  sceneHistory: loadedScenes ? [Object.keys(loadedScenes)[0]] : ['default']
+  currentSceneId: 'default',
+  sceneHistory: ['default']
 };
 
-// 场景自动保存中间件
+// 场景自动保存中间件（更新为使用 CrossPlatformStorage）
 const sceneAutoSaveMiddleware: Middleware = (store) => (next) => (action: any) => {
   const result = next(action);
 
-  // 在场景相关操作后自动保存到localStorage
+  // 在场景相关操作后自动保存到存储
   const sceneActions = [
     'CREATE_SCENE',
     'DELETE_SCENE',
@@ -50,7 +50,9 @@ const sceneAutoSaveMiddleware: Middleware = (store) => (next) => (action: any) =
     const state = store.getState();
     // 延迟保存，避免频繁写入
     setTimeout(() => {
-      SceneStorage.saveToLocalStorage(state.scenes);
+      CrossPlatformStorage.saveScenes(state.editor.scenes).catch(error => {
+        console.error('Failed to auto-save scenes:', error);
+      });
     }, 500);
   }
 
