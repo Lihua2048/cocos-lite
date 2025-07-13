@@ -3,6 +3,10 @@ export const saveAnimation = (name: string, propertyName: string, keyframes: any
   type: 'SAVE_ANIMATION',
   payload: { name, propertyName, keyframes }
 });
+
+// 导出项目管理相关actions
+export * from './actions/projectActions';
+
 import { Entity, EntityProperty, SceneData, TextureResource, SceneCompositionMode, SceneCompositionState } from "./types";
 
 
@@ -47,7 +51,12 @@ export type EditorAction =
   | { type: "SET_SCENE_COMPOSITION_MODE"; payload: SceneCompositionMode }
   | { type: "SET_SELECTED_SCENES"; payload: string[] }
   | { type: "TOGGLE_SCENE_LOCK"; payload: string }
-  | { type: "RESET_SCENE_COMPOSITION"; payload?: void };
+  | { type: "RESET_SCENE_COMPOSITION"; payload?: void }
+  // 项目管理相关
+  | { type: "SWITCH_PROJECT"; payload: { projectId: string } }
+  | { type: "LOAD_PROJECT_SCENES"; payload: { projectId: string } }
+  | { type: "CREATE_PROJECT"; payload: { project: any } }
+  | { type: "LOAD_PROJECT_DATA"; payload: { scenes: any; currentSceneId: string } };
 
 // 场景相关
 export const createScene = (id: string, name: string) => ({

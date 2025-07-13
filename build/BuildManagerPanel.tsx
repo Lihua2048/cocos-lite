@@ -17,6 +17,7 @@ export function BuildManagerPanel() {
   const currentEntities = useSelector((state: RootState) => state.editor.entities);
   const currentSceneId = useSelector((state: RootState) => state.editor.currentSceneId);
   const scenesObject = useSelector((state: RootState) => state.editor.scenes);
+  const sceneComposition = useSelector((state: RootState) => state.editor.sceneComposition);
   const scenes = useMemo(() => Object.values(scenesObject || {}), [scenesObject]);
   const currentProject = useSelector((state: RootState) => {
     const projectId = state.projects?.currentProjectId;
@@ -106,37 +107,7 @@ export function BuildManagerPanel() {
       });
       console.log('BuildManagerPanel: =====================================');
 
-      // 如果当前场景没有实体，创建一个测试实体
-      const currentScene = updatedScenes.find(s => s.id === currentSceneId);
-      if (!currentScene || Object.keys(currentScene.entities || {}).length === 0) {
-        console.log('BuildManagerPanel: 当前场景没有实体，创建测试实体...');
-
-        // @ts-ignore
-        const { createDefaultEntity } = require("../core/types");
-        const testEntity = createDefaultEntity(`build-test-${Date.now()}`, 'ui-button');
-        testEntity.position = { x: 100, y: 100 };
-        testEntity.properties = {
-          ...testEntity.properties,
-          text: '构建测试实体',
-          color: [0.2, 0.8, 0.2, 1] as [number, number, number, number],
-          width: 150,
-          height: 50
-        };
-
-        dispatch(addEntity(testEntity));
-
-        // 再次保存并等待
-        dispatch(saveCurrentScene());
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        // 重新获取数据
-        const newState = store.getState();
-        const finalScenes = Object.values(newState.editor.scenes || {});
-        console.log('BuildManagerPanel: 添加测试实体后的场景数据:', finalScenes.map(s => ({
-          id: s.id,
-          entityCount: Object.keys(s.entities || {}).length
-        })));
-      }
+      console.log('BuildManagerPanel: 场景组合状态:', sceneComposition);
 
       console.log('BuildManagerPanel: Building H5 with scenes:', updatedScenes.map(s => ({
         id: s.id,
@@ -145,7 +116,7 @@ export function BuildManagerPanel() {
         entities: Object.keys(s.entities)
       })));
 
-      const builder = new GameBuilder(updatedScenes, resourceManager, './game/h5');
+      const builder = new GameBuilder(updatedScenes, resourceManager, './game/h5', sceneComposition);
 
       setBuildProgress('正在编译场景...');
       setBuildPercent(30);
@@ -159,58 +130,14 @@ export function BuildManagerPanel() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       setBuildProgress('构建完成，正在打开页面...');
-      setBuildPercent(100);      // 创建游戏页面并在新窗口中打开
-      const gameWindow = window.open('', '_blank', 'width=900,height=700');
-      if (gameWindow) {
-        console.log('BuildManagerPanel: 准备注入的场景数据:', result.sceneDataFile);
+      setBuildPercent(100);
 
-        // 解析并验证场景数据
-        const sceneData = JSON.parse(result.sceneDataFile);
-        console.log('BuildManagerPanel: 解析后的场景数据:', sceneData);
-        console.log('BuildManagerPanel: 场景数量:', sceneData.scenes?.length);
-
-        if (sceneData.scenes && sceneData.scenes.length > 0) {
-          console.log('BuildManagerPanel: 第一个场景的实体:', sceneData.scenes[0].entities);
-          console.log('BuildManagerPanel: 第一个场景实体数量:', Object.keys(sceneData.scenes[0].entities || {}).length);
-        }
-
-        // 创建包含数据和代码的HTML
-        const htmlWithData = result.htmlTemplate.replace(
-          '<!-- 游戏代码将在这里注入 -->',
-          `
-          <script>
-            // 注入场景数据到全局变量
-            window.sceneData = ${JSON.stringify(sceneData)};
-            console.log('页面加载: 场景数据已注入到window.sceneData');
-            console.log('页面加载: 场景数据内容:', window.sceneData);
-            console.log('页面加载: 第一个场景实体:', window.sceneData.scenes?.[0]?.entities);
-          </script>
-          <script>
-            // 游戏运行时代码
-            ${result.gameRuntime}
-
-            // 自动启动游戏
-            window.addEventListener('load', async () => {
-              console.log('页面加载完成，启动游戏');
-              const game = new SimpleGame();
-              await game.init();
-              game.start();
-            });
-          </script>`
-        );
-
-        // 写入HTML
-        gameWindow.document.write(htmlWithData);
-        gameWindow.document.close();
-
-      } else {
-        Alert.alert('错误', '无法打开新窗口，请检查浏览器弹窗设置');
-      }
-
-      setTimeout(() => {
-        setBuildProgress('');
-        setBuildPercent(0);
-      }, 800);
+      console.log('BuildManagerPanel: 构建完成，结果:', {
+        hasGameRuntime: !!result.gameRuntime,
+        hasSceneData: !!result.sceneDataFile,
+        hasHtmlTemplate: !!result.htmlTemplate,
+        sceneDataLength: result.sceneDataFile?.length
+      });
 
       Alert.alert('成功', 'H5 游戏构建成功！页面已打开');
     } catch (error) {

@@ -115,13 +115,13 @@ export function editorReducer(
         [currentSceneId]: {
           ...state.scenes[currentSceneId],
           entities: {
-            ...state.scenes[currentSceneId].entities,
+            ...(state.scenes[currentSceneId].entities || {}),
             [entity.id]: entity,
           },
           metadata: {
-            ...state.scenes[currentSceneId].metadata,
+            ...(state.scenes[currentSceneId].metadata || {}),
             updatedAt: new Date().toISOString(),
-            entityCount: Object.keys(state.scenes[currentSceneId].entities).length + 1
+            entityCount: Object.keys(state.scenes[currentSceneId].entities || {}).length + 1
           }
         }
       } : state.scenes;
@@ -534,13 +534,13 @@ export function editorReducer(
 
       // 加载目标场景
       const targetScene = state.scenes[sceneId];
-      console.log('SWITCH_SCENE: Loading target scene entities:', Object.keys(targetScene.entities));
+      console.log('SWITCH_SCENE: Loading target scene entities:', Object.keys(targetScene?.entities || {}));
 
       return {
         ...state,
         currentSceneId: sceneId,
-        entities: targetScene.entities,
-        animations: targetScene.animations,
+        entities: targetScene?.entities || {},
+        animations: targetScene?.animations || {},
         selectedEntityId: null, // 切换场景时清除选中
         scenes: {
           ...state.scenes,
@@ -568,7 +568,7 @@ export function editorReducer(
         }
       };
 
-      console.log('SAVE_CURRENT_SCENE: Saved entities:', Object.keys(updatedScene.entities));
+      console.log('SAVE_CURRENT_SCENE: Saved entities:', Object.keys(updatedScene?.entities || {}));
 
       return {
         ...state,
@@ -661,6 +661,83 @@ export function editorReducer(
           selectedScenes: [],
           lockedScenes: {}
         }
+      };
+    }
+
+    case 'SWITCH_PROJECT': {
+      // 当切换项目时，清空当前场景数据，重置为空状态
+      return {
+        ...initialState,
+        sceneComposition: {
+          mode: SceneCompositionMode.DEFAULT,
+          selectedScenes: [],
+          lockedScenes: {}
+        }
+      };
+    }
+
+    case 'LOAD_PROJECT_SCENES': {
+      // 当加载项目场景时，从存储中加载对应的场景数据
+      // 这里主要用于触发中间件加载数据，reducer本身不直接处理加载逻辑
+      return state;
+    }
+
+    case 'LOAD_PROJECT_DATA': {
+      // 加载项目数据，包括场景和当前场景ID
+      const { scenes, currentSceneId } = action.payload;
+
+      console.log('🔍 LOAD_PROJECT_DATA: 开始加载项目数据', {
+        scenes: Object.keys(scenes || {}),
+        currentSceneId,
+        scenesCount: Object.keys(scenes || {}).length
+      });
+
+      // 如果没有场景数据，保持空状态
+      if (!scenes || Object.keys(scenes).length === 0) {
+        console.log('🔍 LOAD_PROJECT_DATA: 空项目，重置为初始状态');
+        return {
+          ...state,
+          scenes: {
+            'default': {
+              id: 'default',
+              name: '场景 1',
+              entities: {},
+              animations: {},
+              metadata: {
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                entityCount: 0
+              }
+            }
+          },
+          currentSceneId: 'default',
+          sceneHistory: ['default'],
+          entities: {},
+          animations: {},
+          selectedEntityId: null
+        };
+      }
+
+      // 加载场景数据
+      const sceneKeys = Object.keys(scenes || {});
+      const targetSceneId = currentSceneId && scenes[currentSceneId] ? currentSceneId : sceneKeys[0];
+      const targetScene = scenes[targetSceneId];
+
+      console.log('🔍 LOAD_PROJECT_DATA: 加载完成', {
+        targetSceneId,
+        entitiesCount: Object.keys(targetScene?.entities || {}).length,
+        totalScenes: sceneKeys.length,
+        sceneName: targetScene?.name
+      });
+
+      return {
+        ...state,
+        scenes: scenes,
+        currentSceneId: targetSceneId,
+        sceneHistory: targetSceneId ? [targetSceneId] : [],
+        entities: targetScene?.entities || {},
+        animations: targetScene?.animations || {},
+        selectedEntityId: null // 重置选中的实体
       };
     }
 

@@ -71,20 +71,8 @@ export default function SceneManagerPanel() {
       console.log('SceneManagerPanel: Creating new scene', id, name);
       dispatch(createScene(id, name.trim()));
 
-      // 为新场景创建一个示例实体，便于测试场景组合
-      setTimeout(() => {
-        // @ts-ignore
-        const { createDefaultEntity } = require("../../../core/types");
-        const entity = createDefaultEntity(`test-entity-${Date.now()}`, 'ui-button');
-        entity.position = { x: 50, y: 50 };
-        entity.properties = {
-          ...entity.properties,
-          text: `${name}场景实体`,
-          color: [Math.random(), Math.random(), Math.random(), 1] as [number, number, number, number]
-        };
-        console.log('SceneManagerPanel: Creating test entity for new scene', entity.id);
-        dispatch(addEntity(entity));
-      }, 100);
+      // 不再自动创建测试实体，让用户手动添加
+      // 这样可以避免每次切换场景时都有不必要的UI组件
     }
   };
 

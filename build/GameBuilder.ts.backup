@@ -1,13 +1,55 @@
-import { SceneData, Entity, Animation, SceneCompositionState, SceneCompositionMode } from '../core/types';
+import { SceneData, Entity, Animation, SceneCompositionState } from '../core/types';
 import { WebGLRenderer } from '../core/2d/webgl-renderer';
 import { physicsWorld } from '../core/physics';
 import ResourceManager from '../core/resources/ResourceManager';
 
 /**
  * 游戏打包构建器
- * 将编辑器场景数据转换为可运行的游戏包
- */
-export class GameBuilder {
+ * 将编辑器场景数据转换为可运行的游戏      '    // 绘制文本 - 匹配编辑器SDF字体渲染效果',
+      '    if (text && type.startsWith("ui-")) {',
+      '      // 使用与编辑器一致的文本颜色和字体设置',
+      '      if (properties.textColor && Array.isArray(properties.textColor)) {',
+      '        this.ctx.fillStyle = "rgba(" + Math.floor(properties.textColor[0] * 255) + ", " + Math.floor(properties.textColor[1] * 255) + ", " + Math.floor(properties.textColor[2] * 255) + ", " + (properties.textColor[3] || 1) + ")";',
+      '      } else {',
+      '        this.ctx.fillStyle = "#000"; // 默认黑色文本',
+      '      }',
+      '      ',
+      '      const fontSize = properties.fontSize || 16;',
+      '      this.ctx.font = fontSize + "px Arial";',
+      '      ',
+      '      // 文本对齐方式',
+      '      const textAlign = properties.textAlign || "left";',
+      '      this.ctx.textAlign = textAlign;',
+      '      ',
+      '      // 垂直对齐 - 匹配编辑器的verticalAlign逻辑',
+      '      const verticalAlign = properties.verticalAlign || "middle";',
+      '      let textX = x;',
+      '      let textY = y;',
+      '      ',
+      '      // 水平对齐调整',
+      '      if (textAlign === "center") {',
+      '        textX = x + entityWidth / 2;',
+      '      } else if (textAlign === "right") {',
+      '        textX = x + entityWidth - 5; // 右对齐留一点边距',
+      '      } else {',
+      '        textX = x + 5; // 左对齐留一点边距',
+      '      }',
+      '      ',
+      '      // 垂直对齐调整',
+      '      if (verticalAlign === "middle") {',
+      '        textY = y + entityHeight / 2 + fontSize / 3; // 中间对齐',
+      '      } else if (verticalAlign === "bottom") {',
+      '        textY = y + entityHeight - 5; // 底部对齐',
+      '      } else {',
+      '        textY = y + fontSize; // 顶部对齐',
+      '      }',
+      '      ',
+      '      this.ctx.fillText(text, textX, textY);',
+      '      console.log("SimpleGame: 绘制文本完成:", { text, x: textX, y: textY, align: textAlign, vAlign: verticalAlign });',
+      '    }',
+      '',
+      '    // 注意：编辑器中实体没有边框，所以这里也不绘制边框',
+      '    // this.ctx.strokeRect(x, y, entityWidth, entityHeight); // 已移除', GameBuilder {
   private sceneData: SceneData[];
   private resourceManager: ResourceManager;
   private outputDir: string;
@@ -31,7 +73,6 @@ export class GameBuilder {
       entityCount: Object.keys(s.entities).length,
       entities: Object.keys(s.entities)
     })));
-    console.log('场景组合模式:', this.sceneComposition);
 
     // 1. 生成游戏运行时代码
     const gameRuntime = this.generateGameRuntime();
@@ -68,30 +109,28 @@ export class GameBuilder {
   async buildWechatGame(): Promise<any> {
     console.log('开始构建微信小游戏...');
 
-    // 1. 生成游戏运行时代码
+    // 1. 生成游戏运行时代码（小游戏版本）
     const gameRuntime = this.generateGameRuntime('wechat');
 
-    // 2. 生成场景数据文件
-    const sceneDataFile = this.generateSceneDataFile();
-
-    // 3. 生成微信小游戏配置文件
+    // 2. 生成小游戏配置文件
     const gameConfig = this.generateWechatGameConfig();
-    const adapter = this.generateWechatAdapter();
+
+    // 3. 生成场景数据文件
+    const sceneDataFile = this.generateSceneDataFile();
 
     // 4. 复制资源文件
     await this.copyResources('wechat');
 
-    // 5. 生成构建配置
-    const buildConfig = this.generateBuildConfig('wechat');
+    // 5. 生成适配器代码
+    const adapter = this.generateWechatAdapter();
 
     console.log('微信小游戏构建完成！');
 
     return {
       gameRuntime,
-      sceneDataFile,
       gameConfig,
-      adapter,
-      buildConfig
+      sceneDataFile,
+      adapter
     };
   }
 
@@ -99,10 +138,9 @@ export class GameBuilder {
    * 生成游戏运行时代码
    */
   private generateGameRuntime(platform: 'h5' | 'wechat' = 'h5'): string {
-    // 首先生成场景数据和组合信息
+    // 首先生成场景数据
     const gameData = {
       scenes: this.sceneData,
-      sceneComposition: this.sceneComposition,
       metadata: {
         buildTime: new Date().toISOString(),
         version: '1.0.0',
@@ -117,7 +155,6 @@ export class GameBuilder {
       '// 嵌入游戏数据',
       'const gameData = ' + JSON.stringify(gameData) + ';',
       'console.log("游戏数据已嵌入，场景数量:", gameData.scenes.length);',
-      'console.log("场景组合模式:", gameData.sceneComposition);',
       'gameData.scenes.forEach((scene, index) => {',
       '  console.log("场景 " + (index + 1) + ":", scene.name, "实体数量:", Object.keys(scene.entities || {}).length);',
       '});',
@@ -130,7 +167,6 @@ export class GameBuilder {
       '    this.currentScene = null;',
       '    this.entities = [];',
       '    this.animationId = null;',
-      '    this.sceneComposition = null;',
       '  }',
       '',
       '  async init() {',
@@ -150,8 +186,7 @@ export class GameBuilder {
       '    // 加载场景数据（已通过loadData方法传入）',
       '    console.log("SimpleGame: 场景数据状态:", {',
       '      hasSceneData: !!this.sceneData,',
-      '      sceneCount: this.sceneData?.scenes?.length || 0,',
-      '      compositionMode: this.sceneComposition?.mode',
+      '      sceneCount: this.sceneData?.scenes?.length || 0',
       '    });',
       '',
       '    // 隐藏加载文字',
@@ -165,9 +200,7 @@ export class GameBuilder {
       '    console.log("SimpleGame: 开始加载传入的数据:", data);',
       '    if (data && data.scenes) {',
       '      this.sceneData = data;',
-      '      this.sceneComposition = data.sceneComposition;',
       '      console.log("SimpleGame: 场景数据加载成功，场景数量:", data.scenes.length);',
-      '      console.log("SimpleGame: 场景组合模式:", this.sceneComposition?.mode);',
       '      data.scenes.forEach((scene, index) => {',
       '        console.log("场景 " + (index + 1) + ":", {',
       '          name: scene.name,',
@@ -183,108 +216,36 @@ export class GameBuilder {
       '  start() {',
       '    console.log("开始游戏");',
       '',
-      '    // 根据场景组合模式加载场景',
-      '    this.loadScenesBasedOnComposition();',
+      '    // 加载第一个场景',
+      '    if (this.sceneData && this.sceneData.scenes && this.sceneData.scenes.length > 0) {',
+      '      this.loadScene(this.sceneData.scenes[0]);',
+      '    }',
       '',
       '    // 开始渲染循环',
       '    this.gameLoop();',
       '  }',
       '',
-      '  loadScenesBasedOnComposition() {',
-      '    if (!this.sceneData || !this.sceneData.scenes || this.sceneData.scenes.length === 0) {',
-      '      console.warn("SimpleGame: 没有可用的场景数据");',
-      '      return;',
-      '    }',
-      '',
-      '    const composition = this.sceneComposition;',
-      '    if (!composition) {',
-      '      // 默认模式：加载第一个场景',
-      '      this.loadScene(this.sceneData.scenes[0]);',
-      '      return;',
-      '    }',
-      '',
-      '    console.log("SimpleGame: 使用场景组合模式:", composition.mode);',
-      '',
-      '    switch (composition.mode) {',
-      '      case "DEFAULT":',
-      '        // 默认模式：只显示当前场景',
-      '        const currentScene = this.sceneData.scenes.find(s => s.id === composition.currentSceneId) || this.sceneData.scenes[0];',
-      '        this.loadScene(currentScene);',
-      '        break;',
-      '',
-      '      case "OVERLAY":',
-      '        // 叠加模式：显示所有活跃场景',
-      '        console.log("SimpleGame: 叠加模式 - 合并所有活跃场景");',
-      '        this.loadOverlayScenes(composition.activeScenes || []);',
-      '        break;',
-      '',
-      '      case "MIXED":',
-      '        // 混合模式：显示当前场景 + 锁定场景',
-      '        console.log("SimpleGame: 混合模式 - 当前场景 + 锁定场景");',
-      '        this.loadMixedScenes(composition);',
-      '        break;',
-      '',
-      '      default:',
-      '        console.warn("SimpleGame: 未知的场景组合模式:", composition.mode);',
-      '        this.loadScene(this.sceneData.scenes[0]);',
-      '    }',
-      '  }',
-      '',
       '  loadScene(scene) {',
-      '    console.log("SimpleGame: 加载单个场景:", scene.name);',
+      '    console.log("SimpleGame: 开始加载场景:", scene.name);',
+      '    console.log("SimpleGame: 场景实体数据:", scene.entities);',
+      '    console.log("SimpleGame: 实体数量:", Object.keys(scene.entities || {}).length);',
+      '',
       '    this.currentScene = scene;',
       '    this.entities = Object.values(scene.entities || {});',
-      '    console.log("SimpleGame: 实体数量:", this.entities.length);',
-      '    document.title = scene.name + " - Cocos Game";',
-      '  }',
       '',
-      '  loadOverlayScenes(activeSceneIds) {',
-      '    console.log("SimpleGame: 加载叠加场景:", activeSceneIds);',
-      '    this.entities = [];',
-      '    this.currentScene = { name: "叠加模式", entities: {} };',
-      '',
-      '    activeSceneIds.forEach(sceneId => {',
-      '      const scene = this.sceneData.scenes.find(s => s.id === sceneId);',
-      '      if (scene) {',
-      '        const sceneEntities = Object.values(scene.entities || {});',
-      '        console.log("SimpleGame: 添加场景", scene.name, "的", sceneEntities.length, "个实体");',
-      '        this.entities = this.entities.concat(sceneEntities);',
-      '      }',
+      '    console.log("SimpleGame: 转换后的实体数组:", this.entities);',
+      '    console.log("SimpleGame: 每个实体的详细信息:");',
+      '    this.entities.forEach((entity, index) => {',
+      '      console.log("实体 " + index + ":", {',
+      '        id: entity.id,',
+      '        type: entity.type,',
+      '        position: entity.position,',
+      '        properties: entity.properties',
+      '      });',
       '    });',
       '',
-      '    console.log("SimpleGame: 叠加模式总实体数:", this.entities.length);',
-      '    document.title = "叠加模式 - Cocos Game";',
-      '  }',
-      '',
-      '  loadMixedScenes(composition) {',
-      '    console.log("SimpleGame: 加载混合场景");',
-      '    this.entities = [];',
-      '    this.currentScene = { name: "混合模式", entities: {} };',
-      '',
-      '    // 加载当前场景',
-      '    const currentScene = this.sceneData.scenes.find(s => s.id === composition.currentSceneId);',
-      '    if (currentScene) {',
-      '      const currentEntities = Object.values(currentScene.entities || {});',
-      '      console.log("SimpleGame: 添加当前场景", currentScene.name, "的", currentEntities.length, "个实体");',
-      '      this.entities = this.entities.concat(currentEntities);',
-      '    }',
-      '',
-      '    // 加载锁定的场景',
-      '    if (composition.lockedScenes) {',
-      '      Object.keys(composition.lockedScenes).forEach(sceneId => {',
-      '        if (composition.lockedScenes[sceneId]) {',
-      '          const scene = this.sceneData.scenes.find(s => s.id === sceneId);',
-      '          if (scene && scene.id !== composition.currentSceneId) {',
-      '            const sceneEntities = Object.values(scene.entities || {});',
-      '            console.log("SimpleGame: 添加锁定场景", scene.name, "的", sceneEntities.length, "个实体");',
-      '            this.entities = this.entities.concat(sceneEntities);',
-      '          }',
-      '        }',
-      '      });',
-      '    }',
-      '',
-      '    console.log("SimpleGame: 混合模式总实体数:", this.entities.length);',
-      '    document.title = "混合模式 - Cocos Game";',
+      '    // 更新页面标题',
+      '    document.title = scene.name + " - Cocos Game";',
       '  }',
       '',
       '  gameLoop() {',
@@ -297,6 +258,7 @@ export class GameBuilder {
       '      console.log("SimpleGame: 开始渲染", this.entities.length, "个实体");',
       '      console.log("SimpleGame: Canvas尺寸:", this.canvas.width, "x", this.canvas.height);',
       '      this.entities.forEach((entity, index) => {',
+      '        console.log("SimpleGame: 渲染实体索引", index, ":", entity);',
       '        this.renderEntity(entity);',
       '      });',
       '      console.log("SimpleGame: 所有实体渲染完成");',
@@ -309,9 +271,6 @@ export class GameBuilder {
       '    this.ctx.font = "16px Arial";',
       '    this.ctx.fillText("场景: " + (this.currentScene ? this.currentScene.name : "无"), 10, 25);',
       '    this.ctx.fillText("实体数量: " + (this.entities ? this.entities.length : 0), 10, 45);',
-      '    if (this.sceneComposition) {',
-      '      this.ctx.fillText("组合模式: " + this.sceneComposition.mode, 10, 65);',
-      '    }',
       '',
       '    // 继续循环 - 确保正确绑定this上下文',
       '    const self = this;',
@@ -328,60 +287,72 @@ export class GameBuilder {
       '    let { x, y } = position;',
       '    const { width, height, color, text } = properties;',
       '',
+      '    // 确保实体在Canvas范围内可见',
       '    const entityWidth = width || 100;',
       '    const entityHeight = height || 50;',
-      '',
-      '    // 确保实体在可见范围内',
+      '    ',
+      '    // 如果实体超出Canvas范围，将其调整到可见区域',
       '    if (x < 0 || x >= this.canvas.width - entityWidth) {',
       '      x = Math.max(0, Math.min(this.canvas.width - entityWidth, x));',
+      '      console.log("SimpleGame: 实体X坐标超出范围，调整为:", x);',
       '    }',
       '    if (y < 0 || y >= this.canvas.height - entityHeight) {',
       '      y = Math.max(0, Math.min(this.canvas.height - entityHeight, y));',
+      '      console.log("SimpleGame: 实体Y坐标超出范围，调整为:", y);',
       '    }',
       '',
+      '    console.log("SimpleGame: 渲染实体:", {',
+      '      id: entity.id,',
+      '      type: type,',
+      '      originalPosition: position,',
+      '      adjustedPosition: { x, y },',
+      '      size: { width: entityWidth, height: entityHeight },',
+      '      text: text,',
+      '      color: color',
+      '    });',
+      '',
+      '    // 保存上下文',
       '    this.ctx.save();',
       '',
       '    // 绘制背景 - 匹配编辑器WebGL渲染样式',
       '    if (color && Array.isArray(color) && color.length >= 3) {',
       '      this.ctx.fillStyle = "rgba(" + Math.floor(color[0] * 255) + ", " + Math.floor(color[1] * 255) + ", " + Math.floor(color[2] * 255) + ", " + (color[3] || 1) + ")";',
+      '      console.log("SimpleGame: 使用实体颜色:", this.ctx.fillStyle);',
       '    } else {',
+      '      // 为不同类型设置与编辑器一致的默认颜色',
       '      if (type === "sprite") {',
-      '        this.ctx.fillStyle = "rgba(255, 255, 255, 1)";',
+      '        this.ctx.fillStyle = "rgba(255, 255, 255, 1)"; // 白色，与WebGL一致',
       '      } else if (type.startsWith("ui-")) {',
-      '        this.ctx.fillStyle = "rgba(200, 200, 200, 1)";',
+      '        this.ctx.fillStyle = "rgba(200, 200, 200, 1)"; // 浅灰色，与编辑器UI组件一致',
       '      } else {',
-      '        this.ctx.fillStyle = "rgba(128, 128, 128, 1)";',
+      '        this.ctx.fillStyle = "rgba(128, 128, 128, 1)"; // 中灰色',
       '      }',
+      '      console.log("SimpleGame: 使用默认颜色 (" + type + "):", this.ctx.fillStyle);',
       '    }',
       '',
       '    this.ctx.fillRect(x, y, entityWidth, entityHeight);',
+      '    console.log("SimpleGame: 绘制矩形完成:", { x, y, width: entityWidth, height: entityHeight });',
       '',
       '    // 绘制文本 - 匹配编辑器SDF字体渲染效果',
       '    if (text && type.startsWith("ui-")) {',
-      '      if (properties.textColor && Array.isArray(properties.textColor)) {',
+      '      if (properties.textColor) {',
       '        this.ctx.fillStyle = "rgba(" + Math.floor(properties.textColor[0] * 255) + ", " + Math.floor(properties.textColor[1] * 255) + ", " + Math.floor(properties.textColor[2] * 255) + ", " + (properties.textColor[3] || 1) + ")";',
       '      } else {',
       '        this.ctx.fillStyle = "#000";',
       '      }',
-      '',
-      '      const fontSize = properties.fontSize || 16;',
-      '      this.ctx.font = fontSize + "px Arial";',
-      '      const textAlign = properties.textAlign || "left";',
-      '      this.ctx.textAlign = textAlign;',
-      '',
-      '      let textX = x + 5;',
-      '      let textY = y + entityHeight / 2 + fontSize / 3;',
-      '',
-      '      if (textAlign === "center") {',
-      '        textX = x + entityWidth / 2;',
-      '      } else if (textAlign === "right") {',
-      '        textX = x + entityWidth - 5;',
-      '      }',
-      '',
-      '      this.ctx.fillText(text, textX, textY);',
+      '      this.ctx.font = (properties.fontSize || 16) + "px Arial";',
+      '      this.ctx.textAlign = properties.textAlign || "left";',
+      '      this.ctx.fillText(text, x + 5, y + entityHeight/2 + 5);',
+      '      console.log("SimpleGame: 绘制文本完成:", text);',
       '    }',
       '',
-      '    // 编辑器中实体没有边框，所以这里也不绘制边框',
+      '    // 绘制边框',
+      '    this.ctx.strokeStyle = "#666";',
+      '    this.ctx.lineWidth = 2; // 增加边框粗细使其更可见',
+      '    this.ctx.strokeRect(x, y, entityWidth, entityHeight);',
+      '    console.log("SimpleGame: 绘制边框完成");',
+      '',
+      '    // 恢复上下文',
       '    this.ctx.restore();',
       '  }',
       '',
@@ -442,7 +413,6 @@ export class GameBuilder {
   private generateSceneDataFile(): string {
     const exportData = {
       scenes: this.sceneData,
-      sceneComposition: this.sceneComposition,
       metadata: {
         buildTime: new Date().toISOString(),
         version: '1.0.0',
@@ -523,6 +493,49 @@ export class GameBuilder {
       // 备用方案：提供下载链接
       this.downloadFile('game.html', htmlContent);
     }
+  }
+
+  /**
+   * 生成 HTML 模板
+   */
+  private generateHTMLTemplate(): string {
+    return [
+      '<!DOCTYPE html>',
+      '<html lang="zh-CN">',
+      '<head>',
+      '    <meta charset="UTF-8">',
+      '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+      '    <title>Cocos Game</title>',
+      '    <style>',
+      '        body {',
+      '            margin: 0;',
+      '            padding: 0;',
+      '            display: flex;',
+      '            justify-content: center;',
+      '            align-items: center;',
+      '            min-height: 100vh;',
+      '            background: #000;',
+      '            font-family: Arial, sans-serif;',
+      '        }',
+      '        #gameCanvas {',
+      '            border: 1px solid #333;',
+      '            background: #222;',
+      '        }',
+      '        #loading {',
+      '            position: absolute;',
+      '            color: white;',
+      '            font-size: 18px;',
+      '        }',
+      '    </style>',
+      '</head>',
+      '<body>',
+      '    <div id="loading">正在加载游戏...</div>',
+      '    <canvas id="gameCanvas" width="800" height="600"></canvas>',
+      '    ',
+      '    <!-- 游戏代码将在这里注入 -->',
+      '</body>',
+      '</html>'
+    ].join('\n');
   }
 
   /**
@@ -627,8 +640,43 @@ export class GameBuilder {
    * 复制资源文件
    */
   private async copyResources(platform: 'h5' | 'wechat'): Promise<void> {
+    // 这里需要复制纹理、字体、音频等资源文件
     console.log('复制 ' + platform + ' 平台资源文件...');
+
+    // 复制 SDF 字体文件
+    const sdfFontFiles = [
+      '../core/2d/sdf-font/roboto-msdf.json',
+      '../core/2d/sdf-font/roboto-msdf.png'
+    ];
+
+    // 复制纹理资源
+    const textureFiles = this.resourceManager.getAllTextures();
+
     console.log('资源文件复制完成');
+  }
+
+  /**
+   * 写入文件到输出目录 (浏览器版本 - 模拟写入)
+   */
+  private async writeFiles(files: Record<string, string>): Promise<void> {
+    console.log('构建文件准备完成:');
+
+    for (const [filePath, content] of Object.entries(files)) {
+      console.log('文件: ' + filePath + ' (' + content.length + ' 字符)');
+
+      // 在浏览器环境中，我们将文件内容存储到localStorage或直接提供下载
+      if (typeof window !== 'undefined') {
+        // 存储到localStorage便于调试
+        localStorage.setItem('build_' + filePath.replace(/[\/\\]/g, '_'), content);
+
+        // 如果是主要文件，提供下载链接
+        if (filePath === 'index.html' || filePath === 'data/scenes.json') {
+          this.downloadFile(filePath, content);
+        }
+      }
+    }
+
+    console.log('所有文件已准备完成，可通过浏览器开发者工具查看localStorage中的build_*项目');
   }
 
   /**

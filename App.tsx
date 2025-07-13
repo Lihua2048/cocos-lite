@@ -19,8 +19,8 @@ import {
   type ProjectStats
 } from "./core/phase2/Phase2CoreManager";
 import SceneAsyncLoader from "./core/utils/SceneAsyncLoader";
-import SceneManagerPanel from "./editor/components/scene/SceneManagerPanel";
-import ProjectManagerPanel from "./editor/components/project/ProjectManagerPanel";
+import NewSceneManagerPanel from "./editor/components/scene/NewSceneManagerPanel";
+import NewProjectSelectorPanel from "./editor/components/project/NewProjectSelectorPanel";
 import { BuildManagerPanel } from "./build/BuildManagerPanel";
 import SceneCompositionEditor from "./editor/components/scene/SceneCompositionEditor";
 import SceneCompositionModeSelector from "./editor/components/scene/SceneCompositionModeSelector";
@@ -108,8 +108,8 @@ function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
 
         <View style={styles.managerSection}>
           <SceneCompositionModeSelector />
-          <ProjectManagerPanel />
-          <SceneManagerPanel />
+          <NewProjectSelectorPanel />
+          <NewSceneManagerPanel />
           <BuildManagerPanel />
         </View>
       </View>
