@@ -3,7 +3,7 @@ export const saveAnimation = (name: string, propertyName: string, keyframes: any
   type: 'SAVE_ANIMATION',
   payload: { name, propertyName, keyframes }
 });
-import { Entity, EntityProperty, SceneData, TextureResource } from "./types";
+import { Entity, EntityProperty, SceneData, TextureResource, SceneCompositionMode, SceneCompositionState } from "./types";
 
 
 export const ADD_ENTITY = "ADD_ENTITY";
@@ -42,7 +42,12 @@ export type EditorAction =
   | { type: 'LOAD_SCENE'; payload: SceneData }
   | { type: 'RENAME_SCENE'; payload: { id: string; newName: string } }
   | { type: 'IMPORT_SCENES'; payload: SceneData[] }
-  | { type: 'EXPORT_SCENES'; payload?: void };
+  | { type: 'EXPORT_SCENES'; payload?: void }
+  // 场景组合相关
+  | { type: "SET_SCENE_COMPOSITION_MODE"; payload: SceneCompositionMode }
+  | { type: "SET_SELECTED_SCENES"; payload: string[] }
+  | { type: "TOGGLE_SCENE_LOCK"; payload: string }
+  | { type: "RESET_SCENE_COMPOSITION"; payload?: void };
 
 // 场景相关
 export const createScene = (id: string, name: string) => ({
@@ -172,4 +177,25 @@ export const pauseAnimation = (entityId: string): EditorAction => ({
 export const stopAnimation = (entityId: string): EditorAction => ({
   type: "STOP_ANIMATION" as const,
   payload: { entityId }
+});
+
+// 场景组合相关actions
+export const setSceneCompositionMode = (mode: SceneCompositionMode): EditorAction => ({
+  type: "SET_SCENE_COMPOSITION_MODE" as const,
+  payload: mode
+});
+
+export const setSelectedScenes = (sceneIds: string[]): EditorAction => ({
+  type: "SET_SELECTED_SCENES" as const,
+  payload: sceneIds
+});
+
+export const toggleSceneLock = (sceneId: string): EditorAction => ({
+  type: "TOGGLE_SCENE_LOCK" as const,
+  payload: sceneId
+});
+
+export const resetSceneComposition = (): EditorAction => ({
+  type: "RESET_SCENE_COMPOSITION" as const,
+  payload: undefined
 });

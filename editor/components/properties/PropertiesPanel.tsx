@@ -11,7 +11,11 @@ import { RootState, TextureResource } from "../../../core/types";
 import { EntityProperty } from "../../../core/types";
 import KeyframeEditor from "../animation/KeyframeEditor";
 import AnimationControls from "../animation/AnimationControls";
+import ColorPicker from "../common/ColorPicker";
+import TimelineKeyframeEditor from "../animation/TimelineKeyframeEditor";
 import "./PropertiesPanel.css";
+import "../common/ColorPicker.css";
+import "../animation/TimelineKeyframeEditor.css";
 
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
@@ -145,7 +149,7 @@ export default function PropertiesPanel() {
 
   if (!selectedEntity) {
     return (
-      <div className="prop-container">
+      <div className="prop-container" style={{height:'100%', overflow:'auto'}}>
         <div className="prop-no-selection">未选择实体</div>
       </div>
     );
@@ -198,7 +202,10 @@ export default function PropertiesPanel() {
             {physicsRunning ? '暂停物理' : '运行物理'}
           </button>
         </div>
-        <div className="prop-group"><KeyframeEditor propertyName="position.x" /></div>
+        <div className="prop-group">
+          <div className="prop-subtitle">帧动画编辑器（泳道图）</div>
+          <TimelineKeyframeEditor entityId={selectedEntity.id} />
+        </div>
         <div className="prop-group"><AnimationControls entityId={selectedEntity.id} /></div>
         {selectedEntity.animation && (
           <div className="prop-label">当前动画: {selectedEntity.animation.currentAnimation}</div>
@@ -219,11 +226,12 @@ export default function PropertiesPanel() {
         </div>
         <div className="prop-group">
           <div className="prop-subtitle">颜色 (RGBA)</div>
-          <div className="prop-row">
-            {["R", "G", "B", "A"].map((channel, index) => (
-              <label key={index} className="prop-label">{channel}:<input className="prop-input" type="number" step="0.01" min="0" max="1" value={editableProps.color[index]} onChange={e => handleInputChange("color", e.target.value, index)} /></label>
-            ))}
-          </div>
+          <ColorPicker
+            value={editableProps.color}
+            onChange={(newColor) => {
+              dispatch(updateEntityProperty(selectedEntity.id, 'color', newColor));
+            }}
+          />
         </div>
       </div>
     );
@@ -242,11 +250,12 @@ export default function PropertiesPanel() {
         {editableProps.backgroundType === 'color' && (
           <div className="prop-group">
             <div className="prop-subtitle">背景色 (RGBA)</div>
-            <div className="prop-row">
-              {["R", "G", "B", "A"].map((channel, index) => (
-                <label key={index} className="prop-label">{channel}:<input className="prop-input" type="number" step="0.01" min="0" max="1" value={editableProps.color[index]} onChange={e => handleInputChange('color', e.target.value, index)} /></label>
-              ))}
-            </div>
+            <ColorPicker
+              value={editableProps.color}
+              onChange={(newColor) => {
+                dispatch(updateEntityProperty(selectedEntity.id, 'color', newColor));
+              }}
+            />
           </div>
         )}
         {editableProps.backgroundType === 'image' && (
@@ -270,11 +279,12 @@ export default function PropertiesPanel() {
         </div>
         <div className="prop-group">
           <div className="prop-subtitle">文字颜色 (RGBA)</div>
-          <div className="prop-row">
-            {["R", "G", "B", "A"].map((channel, index) => (
-              <label key={index} className="prop-label">{channel}:<input className="prop-input" type="number" step="0.01" min="0" max="1" value={editableProps.textColor[index]} onChange={e => handleInputChange('textColor', e.target.value, index)} /></label>
-            ))}
-          </div>
+          <ColorPicker
+            value={editableProps.textColor}
+            onChange={(newColor) => {
+              dispatch(updateEntityProperty(selectedEntity.id, 'textColor', newColor));
+            }}
+          />
         </div>
         <div className="prop-group">
           <div className="prop-subtitle">字体大小</div>

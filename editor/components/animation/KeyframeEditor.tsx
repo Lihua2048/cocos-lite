@@ -17,9 +17,11 @@ interface Keyframe {
 }
 
 export default function KeyframeEditor({
-  propertyName
+  propertyName,
+  axisMode
 }: {
-  propertyName: string
+  propertyName: string;
+  axisMode?: boolean;
 }) {
   // 获取全局 textures、entities、selectedEntityId
   const textures = useSelector((state: RootState) => state.editor.textures);
@@ -135,9 +137,111 @@ export default function KeyframeEditor({
     setKeyframes(updated);
   };
 
+  // 渲染坐标轴可视化
+  const renderAxisVisualization = () => {
+    if (!axisMode || keyframes.length === 0) return null;
+
+    const maxTime = Math.max(...keyframes.map(f => f.time)) || 10;
+    const maxX = Math.max(...keyframes.map(f => f.position.x)) || 100;
+    const maxY = Math.max(...keyframes.map(f => f.position.y)) || 100;
+
+    return (
+      <View style={{
+        height: 120,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        backgroundColor: '#f9f9f9',
+        marginVertical: 8,
+        position: 'relative'
+      }}>
+        {/* 时间轴 */}
+        <View style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 20,
+          backgroundColor: '#eee',
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 4
+        }}>
+          <Text style={{ fontSize: 10 }}>时间轴: 0 - {maxTime}</Text>
+        </View>
+
+        {/* Y轴 */}
+        <View style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 20,
+          width: 30,
+          backgroundColor: '#eee',
+          justifyContent: 'space-between',
+          paddingVertical: 4
+        }}>
+          <Text style={{ fontSize: 8, textAlign: 'center' }}>{maxY}</Text>
+          <Text style={{ fontSize: 8, textAlign: 'center' }}>Y</Text>
+          <Text style={{ fontSize: 8, textAlign: 'center' }}>0</Text>
+        </View>
+
+        {/* 关键帧点 */}
+        {keyframes.map((frame, index) => {
+          const x = 30 + (frame.time / maxTime) * (280 - 30);
+          const y = 100 - (frame.position.y / maxY) * 80;
+          return (
+            <View
+              key={index}
+              style={{
+                position: 'absolute',
+                left: x - 4,
+                top: y - 4,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: '#4CAF50',
+                borderWidth: 1,
+                borderColor: '#2E7D32'
+              }}
+            />
+          );
+        })}
+
+        {/* 连接线 */}
+        {keyframes.length > 1 && (
+          <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+            {keyframes.slice(0, -1).map((frame, index) => {
+              const nextFrame = keyframes[index + 1];
+              const x1 = 30 + (frame.time / maxTime) * (280 - 30);
+              const y1 = 100 - (frame.position.y / maxY) * 80;
+              const x2 = 30 + (nextFrame.time / maxTime) * (280 - 30);
+              const y2 = 100 - (nextFrame.position.y / maxY) * 80;
+
+              return (
+                <line
+                  key={index}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="#2196F3"
+                  strokeWidth="2"
+                />
+              );
+            })}
+          </svg>
+        )}
+      </View>
+    );
+  };
+
   return (
     <View style={{ padding: 10 }}>
       <Text>{propertyName} 动画关键帧编辑</Text>
+
+      {/* 坐标轴可视化 */}
+      {renderAxisVisualization()}
+
       {keyframes.map((frame, index) => (
         <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
           <Text>时间:</Text>

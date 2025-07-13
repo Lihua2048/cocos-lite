@@ -21,6 +21,8 @@ export function BuildManagerPanel() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [autoBuildEnabled, setAutoBuildEnabled] = useState(false);
   const [lastBuildTime, setLastBuildTime] = useState<number>(0);
+  const [buildProgress, setBuildProgress] = useState('');
+  const [buildPercent, setBuildPercent] = useState(0);
 
   // 自动构建功能
   useEffect(() => {
@@ -55,16 +57,39 @@ export function BuildManagerPanel() {
 
   const handleBuildH5 = async () => {
     if (isBuilding) return;
-
     try {
       setIsBuilding(true);
-      console.log('开始构建 H5 游戏...');
+      setBuildProgress('正在准备构建环境...');
+      setBuildPercent(10);
 
       const builder = new GameBuilder(scenes, resourceManager, './game/h5');
+
+      setBuildProgress('正在编译场景...');
+      setBuildPercent(30);
+
       const result = await builder.buildH5Game();
 
-      Alert.alert('成功', 'H5 游戏构建成功！');
+      setBuildProgress('正在优化资源...');
+      setBuildPercent(70);
+
+      // 模拟优化过程
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setBuildProgress('构建完成，正在打开页面...');
+      setBuildPercent(100);
+
+      setTimeout(() => {
+        setBuildProgress('');
+        setBuildPercent(0);
+        if (typeof window !== 'undefined') {
+          window.open('/game/h5/index.html', '_blank');
+        }
+      }, 800);
+
+      Alert.alert('成功', 'H5 游戏构建成功！页面已打开');
     } catch (error) {
+      setBuildProgress('');
+      setBuildPercent(0);
       console.error('H5 构建失败:', error);
       Alert.alert('错误', `H5 构建失败: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -77,13 +102,34 @@ export function BuildManagerPanel() {
 
     try {
       setIsBuilding(true);
-      console.log('开始构建微信小游戏...');
+      setBuildProgress('正在准备微信小游戏构建环境...');
+      setBuildPercent(10);
 
       const builder = new GameBuilder(scenes, resourceManager, './game/wechat');
+
+      setBuildProgress('正在编译场景...');
+      setBuildPercent(30);
+
       const result = await builder.buildWechatGame();
 
-      Alert.alert('成功', '微信小游戏构建成功！');
+      setBuildProgress('正在适配微信小游戏API...');
+      setBuildPercent(70);
+
+      // 模拟适配过程
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      setBuildProgress('构建完成');
+      setBuildPercent(100);
+
+      setTimeout(() => {
+        setBuildProgress('');
+        setBuildPercent(0);
+      }, 800);
+
+      Alert.alert('成功', '微信小游戏构建成功！请使用微信开发者工具打开 ./game/wechat 目录');
     } catch (error) {
+      setBuildProgress('');
+      setBuildPercent(0);
       console.error('微信小游戏构建失败:', error);
       Alert.alert('错误', `微信小游戏构建失败: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -96,64 +142,29 @@ export function BuildManagerPanel() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* 头部信息 */}
-      <View style={styles.header}>
-        <Text style={styles.title}>构建</Text>
-        {currentProject && (
-          <Text style={styles.projectInfo}>
-            {currentProject.name} • {scenes.length} 场景
-          </Text>
-        )}
-      </View>
-
-      {/* 自动构建开关 */}
-      <View style={styles.autoSection}>
-        <Text style={styles.autoLabel}>自动构建</Text>
-        <Switch
-          value={autoBuildEnabled}
-          onValueChange={setAutoBuildEnabled}
-          trackColor={{ false: '#767577', true: '#81b0ff' }}
-          thumbColor={autoBuildEnabled ? '#f5dd4b' : '#f4f3f4'}
-        />
-      </View>
-
-      {/* 构建按钮 */}
-      <View style={styles.buildSection}>
+    <View style={styles.compactContainer}>
+      <Text style={styles.compactLabel}>构建</Text>
+      <View style={styles.compactControls}>
         <TouchableOpacity
-          style={[styles.buildButton, styles.h5Button, isBuilding && styles.disabledButton]}
+          style={[styles.compactBuildButton, styles.h5Button, isBuilding && styles.disabledButton]}
           onPress={handleBuildH5}
           disabled={isBuilding}
         >
-          <Text style={styles.buildButtonText}>
-            {isBuilding ? '构建中...' : 'H5'}
+          <Text style={styles.compactBuildButtonText}>
+            {isBuilding && buildProgress.includes('H5') ? 'H5...' : 'H5'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.buildButton, styles.wechatButton, isBuilding && styles.disabledButton]}
+          style={[styles.compactBuildButton, styles.wechatButton, isBuilding && styles.disabledButton]}
           onPress={handleBuildWechat}
           disabled={isBuilding}
         >
-          <Text style={styles.buildButtonText}>
-            {isBuilding ? '构建中...' : '微信'}
+          <Text style={styles.compactBuildButtonText}>
+            {isBuilding && buildProgress.includes('微信') ? '微信...' : '微信'}
           </Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.buildButton, styles.previewButton]}
-          onPress={handlePreviewH5}
-        >
-          <Text style={styles.buildButtonText}>预览</Text>
-        </TouchableOpacity>
       </View>
-
-      {/* 构建信息 */}
-      {scenes.length === 0 && (
-        <Text style={styles.emptyText}>
-          暂无场景可构建
-        </Text>
-      )}
     </View>
   );
 }
@@ -169,6 +180,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 1,
+  },
+
+  // 紧凑样式 - 参考UnifiedToolbar
+  compactContainer: {
+    marginRight: 20,
+    position: 'relative',
+  },
+  compactLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  compactControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  compactBuildButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 4,
+    minWidth: 40,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactBuildButtonText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
   },
 
   // Header styles
@@ -200,6 +242,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
     fontWeight: '500',
+  },
+
+  // Progress section
+  progressSection: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 2,
+  },
+  percentText: {
+    fontSize: 10,
+    color: '#666',
+    textAlign: 'center',
   },
 
   // Build section

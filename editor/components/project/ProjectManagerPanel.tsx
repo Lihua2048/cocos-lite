@@ -152,48 +152,30 @@ export default function ProjectManagerPanel({}: ProjectManagerPanelProps) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.compactHeader}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.compactTitle}>项目管理</Text>
-          {currentProject && (
-            <Text style={styles.currentProjectName}>
-              {currentProject.name} ({Object.keys(currentProject.scenes).length}场景)
-            </Text>
-          )}
-        </View>
-        <View style={styles.headerRight}>
-          <Picker
-            selectedValue={currentProject?.id || ''}
-            onValueChange={handleProjectSwitch}
-            style={styles.projectPicker}
-          >
-            <Picker.Item label="选择项目..." value="" />
-            {projects.map(project => (
-              <Picker.Item
-                key={project.id}
-                label={project.name}
-                value={project.id}
-              />
-            ))}
-          </Picker>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => setShowCreateDialog(true)}
-          >
-            <Text style={styles.primaryButtonText}>+ 新建</Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.compactContainer}>
+      <Text style={styles.compactLabel}>项目</Text>
+      <View style={styles.compactControls}>
+        <Picker
+          selectedValue={currentProject?.id || ''}
+          onValueChange={handleProjectSwitch}
+          style={styles.compactPicker}
+        >
+          <Picker.Item label="选择项目..." value="" />
+          {projects.map(project => (
+            <Picker.Item
+              key={project.id}
+              label={project.name}
+              value={project.id}
+            />
+          ))}
+        </Picker>
+        <TouchableOpacity
+          style={styles.compactAddButton}
+          onPress={() => setShowCreateDialog(true)}
+        >
+          <Text style={styles.compactAddText}>+</Text>
+        </TouchableOpacity>
       </View>
-
-      {projects.length > 0 && (
-        <View style={styles.projectStats}>
-          <Text style={styles.statsText}>
-            共 {projects.length} 个项目 •
-            最近修改: {currentProject ? formatDate(currentProject.lastModified) : '无'}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -209,6 +191,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 1,
+  },
+
+  // 紧凑样式 - 参考UnifiedToolbar
+  compactContainer: {
+    marginRight: 20,
+    position: 'relative',
+  },
+  compactLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  compactControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactAddButton: {
+    width: 32,
+    height: 32,
+    backgroundColor: '#28a745',
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  compactAddText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 
   // Compact header styles
@@ -260,12 +272,12 @@ const styles = StyleSheet.create({
     height: 32,
   },
   compactPicker: {
-    flex: 1,
+    minWidth: 120,
+    height: 32,
     backgroundColor: '#f8f9fa',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 4,
-    height: 32,
   },
   projectPicker: {
     minWidth: 120,

@@ -21,12 +21,14 @@ import SceneAsyncLoader from "./core/utils/SceneAsyncLoader";
 import SceneManagerPanel from "./editor/components/scene/SceneManagerPanel";
 import ProjectManagerPanel from "./editor/components/project/ProjectManagerPanel";
 import { BuildManagerPanel } from "./build/BuildManagerPanel";
+import SceneCompositionEditor from "./editor/components/scene/SceneCompositionEditor";
 
 export default function App() {
   const resourceManager = useRef(new ResourceManager());
   const [phase2Initialized, setPhase2Initialized] = useState(false);
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
   const [scenesLoaded, setScenesLoaded] = useState(false);
+  const [showCompositionEditor, setShowCompositionEditor] = useState(false);
 
   // 初始化场景加载和第二期核心功能
   useEffect(() => {
@@ -81,8 +83,15 @@ export default function App() {
         </View>
 
         <View style={styles.managerSection}>
-          {/* 统一工具栏 */}
-        <UnifiedToolbar />
+          <TouchableOpacity
+            style={styles.compositionButton}
+            onPress={() => setShowCompositionEditor(!showCompositionEditor)}
+          >
+            <Text style={styles.compositionButtonText}>场景组合</Text>
+          </TouchableOpacity>
+          <ProjectManagerPanel />
+          <SceneManagerPanel />
+          <BuildManagerPanel />
         </View>
       </View>
     );
@@ -93,6 +102,7 @@ export default function App() {
       <View style={styles.container}>
         {/* 顶栏 */}
         {renderTopBar()}
+
 
 
         {/* 主工作区 */}
@@ -111,7 +121,11 @@ export default function App() {
 
           {/* 右侧属性面板 */}
           <View style={styles.rightPanel}>
-            <PropertiesPanel />
+            {showCompositionEditor ? (
+              <SceneCompositionEditor />
+            ) : (
+              <PropertiesPanel />
+            )}
           </View>
         </View>
       </View>
@@ -165,6 +179,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  compositionButton: {
+    backgroundColor: "#ff9800",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  compositionButtonText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "600",
   },
   mainArea: {
     flex: 1,
