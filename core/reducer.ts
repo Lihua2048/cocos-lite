@@ -108,12 +108,34 @@ export function editorReducer(
           ...(props.angle !== undefined ? { angle: props.angle } : {})
         };
       }
+      // 同时保存到当前场景的entities中
+      const currentSceneId = state.currentSceneId;
+      const updatedScenes = currentSceneId && state.scenes[currentSceneId] ? {
+        ...state.scenes,
+        [currentSceneId]: {
+          ...state.scenes[currentSceneId],
+          entities: {
+            ...state.scenes[currentSceneId].entities,
+            [entity.id]: entity,
+          },
+          metadata: {
+            ...state.scenes[currentSceneId].metadata,
+            updatedAt: new Date().toISOString(),
+            entityCount: Object.keys(state.scenes[currentSceneId].entities).length + 1
+          }
+        }
+      } : state.scenes;
+
+      console.log('ADD_ENTITY: Added entity', entity.id, 'to scene', currentSceneId);
+      console.log('ADD_ENTITY: Scene entities now:', updatedScenes[currentSceneId!]?.entities ? Object.keys(updatedScenes[currentSceneId!].entities) : 'none');
+
       return {
         ...state,
         entities: {
           ...state.entities,
           [entity.id]: entity,
         },
+        scenes: updatedScenes,
       };
     }
 
@@ -490,8 +512,12 @@ export function editorReducer(
     case 'SWITCH_SCENE': {
       const sceneId = action.payload;
       if (!state.scenes[sceneId] || sceneId === state.currentSceneId) {
+        console.log('SWITCH_SCENE: Invalid scene or same scene', sceneId);
         return state;
       }
+
+      console.log('SWITCH_SCENE: Switching from', state.currentSceneId, 'to', sceneId);
+      console.log('SWITCH_SCENE: Current entities before save:', Object.keys(state.entities));
 
       // 保存当前场景状态
       const currentScene = state.scenes[state.currentSceneId!];
@@ -508,6 +534,8 @@ export function editorReducer(
 
       // 加载目标场景
       const targetScene = state.scenes[sceneId];
+      console.log('SWITCH_SCENE: Loading target scene entities:', Object.keys(targetScene.entities));
+
       return {
         ...state,
         currentSceneId: sceneId,
@@ -525,6 +553,9 @@ export function editorReducer(
     case 'SAVE_CURRENT_SCENE': {
       if (!state.currentSceneId) return state;
 
+      console.log('SAVE_CURRENT_SCENE: Saving scene', state.currentSceneId);
+      console.log('SAVE_CURRENT_SCENE: Current entities:', Object.keys(state.entities));
+
       const currentScene = state.scenes[state.currentSceneId];
       const updatedScene = {
         ...currentScene,
@@ -536,6 +567,8 @@ export function editorReducer(
           entityCount: Object.keys(state.entities).length
         }
       };
+
+      console.log('SAVE_CURRENT_SCENE: Saved entities:', Object.keys(updatedScene.entities));
 
       return {
         ...state,
@@ -568,18 +601,35 @@ export function editorReducer(
 
     // 场景组合相关
     case 'SET_SCENE_COMPOSITION_MODE': {
+      const newMode = action.payload;
+      let newSelectedScenes: string[] = [];
+
+      if (newMode === SceneCompositionMode.OVERLAY) {
+        // 叠加模式：选中所有场景
+        newSelectedScenes = Object.keys(state.scenes);
+      } else if (newMode === SceneCompositionMode.DEFAULT || newMode === SceneCompositionMode.MIXED) {
+        // 默认模式和混合模式：不预选场景
+        newSelectedScenes = [];
+      }
+
+      console.log('SET_SCENE_COMPOSITION_MODE: Setting mode to', newMode);
+      console.log('SET_SCENE_COMPOSITION_MODE: Available scenes:', Object.keys(state.scenes));
+      console.log('SET_SCENE_COMPOSITION_MODE: New selected scenes:', newSelectedScenes);
+
       return {
         ...state,
         sceneComposition: {
           ...state.sceneComposition,
-          mode: action.payload,
-          // 切换模式时重置选中场景
-          selectedScenes: action.payload === SceneCompositionMode.OVERLAY ? Object.keys(state.scenes) : []
+          mode: newMode,
+          selectedScenes: newSelectedScenes,
+          // 重置锁定状态
+          lockedScenes: {}
         }
       };
     }
 
     case 'SET_SELECTED_SCENES': {
+      console.log('SET_SELECTED_SCENES: Setting selected scenes to', action.payload);
       return {
         ...state,
         sceneComposition: {

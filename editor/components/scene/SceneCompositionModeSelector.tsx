@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, SceneCompositionMode } from '../../../core/types';
-import { setSceneCompositionMode } from '../../../core/actions';
+import { setSceneCompositionMode, saveCurrentScene } from '../../../core/actions';
 
 export default function SceneCompositionModeSelector() {
   const dispatch = useDispatch();
@@ -12,7 +12,12 @@ export default function SceneCompositionModeSelector() {
   }));
 
   const handleModeChange = (newMode: SceneCompositionMode) => {
+    // 在切换模式前先保存当前场景
+    dispatch(saveCurrentScene());
+    // 然后切换模式
     dispatch(setSceneCompositionMode(newMode));
+
+    console.log('SceneCompositionModeSelector: Mode changed to', newMode);
   };
 
   return (

@@ -28,6 +28,7 @@
     "@types/**/*",
     "editor/**/*",
     "core/**/*",
+    "build/**/*",
     "test/**/*",
     "App.tsx"
 , "physics/PhysicsSystem.ts"  ],

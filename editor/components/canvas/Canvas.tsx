@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from "react";
-import { View, Text, StyleSheet, TextInput } from "react-native";
+import React, { useRef, useEffect, useState, useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { useStore } from "react-redux";
 import { WebGLRenderer } from "../../../core/2d/webgl-renderer";
@@ -26,7 +26,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 10,
     left: 10,
-    pointerEvents: "none",
   },
   tipsText: {
     color: "#000",
@@ -44,14 +43,23 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
   const [draggingEntityId, setDraggingEntityId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // 只在初始渲染时获取，后续每帧用 store.getState()
+  // 使用store引用而不是useSelector来避免渲染循环
   const store = useStore<RootState>();
-  const { animations, sceneComposition, scenes, currentSceneId } = useSelector((state: RootState) => ({
-    animations: state.editor.animations,
+
+  // 使用memoized selector避免不必要的重渲染
+  const sceneData = useSelector((state: RootState) => ({
     sceneComposition: state.editor.sceneComposition,
     scenes: state.editor.scenes,
     currentSceneId: state.editor.currentSceneId
-  }));
+  }), (left, right) => {
+    return (
+      left.sceneComposition === right.sceneComposition &&
+      left.scenes === right.scenes &&
+      left.currentSceneId === right.currentSceneId
+    );
+  });
+
+  const { sceneComposition, scenes, currentSceneId } = sceneData;
   const rendererRef = useRef<WebGLRenderer | null>(null);
   const animationIdRef = useRef<number>();
 
@@ -267,60 +275,88 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
     event.preventDefault();
   };
 
-  // 根据场景组合模式获取需要渲染的实体
+  // 根据场景组合模式获取需要渲染的实体 - 直接使用函数，不使用useMemo避免依赖问题
   const getRenderEntities = (): Record<string, Entity> => {
-    const { mode, selectedScenes, lockedScenes } = sceneComposition;
-
+    const currentState = store.getState().editor;
+    const { mode, selectedScenes, lockedScenes } = currentState.sceneComposition;
+    const currentEntities = currentState.entities;
+    const allScenes = currentState.scenes;
+    const activeSceneId = currentState.currentSceneId;
 
     switch (mode) {
       case SceneCompositionMode.DEFAULT:
-        // 默认模式：首先尝试从当前场景获取实体，如果没有则从editor状态获取
-        if (currentSceneId && scenes[currentSceneId] && Object.keys(scenes[currentSceneId].entities).length > 0) {
-          return scenes[currentSceneId].entities;
-        } else {
-          // 回退到editor状态中的实体
-          const editorEntities = store.getState().editor.entities;
-          return editorEntities;
-        }
+        // 默认模式：只渲染当前活动的实体
+        return currentEntities;
 
       case SceneCompositionMode.OVERLAY:
-        // 叠加模式：渲染所有选中场景的实体
+        // 叠加模式：合并选中场景的实体 + 当前活动实体
         const overlayEntities: Record<string, Entity> = {};
+
+
+        // 添加选中场景的实体
         selectedScenes.forEach(sceneId => {
-          if (scenes[sceneId]) {
-            Object.assign(overlayEntities, scenes[sceneId].entities);
+          if (allScenes[sceneId]) {
+            const sceneEntities = allScenes[sceneId].entities;
+
+            Object.keys(sceneEntities).forEach(entityId => {
+              // 如果是当前场景，直接使用当前实体（避免过期数据）
+              if (sceneId === activeSceneId) {
+                if (currentEntities[entityId]) {
+                  overlayEntities[entityId] = currentEntities[entityId];
+                }
+              } else {
+                // 其他场景的实体加前缀避免ID冲突
+                const prefixedId = `scene_${sceneId}_${entityId}`;
+                overlayEntities[prefixedId] = {
+                  ...sceneEntities[entityId],
+                  id: prefixedId
+                };
+              }
+            });
+          } else {
           }
         });
-        // 如果没有选中场景的实体，回退到editor状态
-        if (Object.keys(overlayEntities).length === 0) {
-          return store.getState().editor.entities;
+
+        // 确保当前场景的实体也包含在内（如果当前场景不在选中列表中）
+        if (!selectedScenes.includes(activeSceneId || '')) {
+          Object.assign(overlayEntities, currentEntities);
         }
+
         return overlayEntities;
 
       case SceneCompositionMode.MIXED:
-        // 混合模式：渲染当前场景 + 锁定场景的实体
+        // 混合模式：当前实体 + 锁定场景的实体
         const mixedEntities: Record<string, Entity> = {};
 
-        // 先添加锁定场景的实体
-        Object.keys(lockedScenes).forEach(sceneId => {
-          if (lockedScenes[sceneId] && scenes[sceneId]) {
-            Object.assign(mixedEntities, scenes[sceneId].entities);
+        // 先添加当前活动的实体
+        Object.assign(mixedEntities, currentEntities);
+
+        const lockedSceneIds = Object.keys(lockedScenes).filter(id => lockedScenes[id]);
+
+        // 再添加锁定场景的实体
+        lockedSceneIds.forEach(sceneId => {
+          if (allScenes[sceneId] && sceneId !== activeSceneId) {
+            const sceneEntities = allScenes[sceneId].entities;
+
+            Object.keys(sceneEntities).forEach(entityId => {
+              // 给锁定场景的实体加前缀避免ID冲突
+              const prefixedId = `locked_${sceneId}_${entityId}`;
+              mixedEntities[prefixedId] = {
+                ...sceneEntities[entityId],
+                id: prefixedId
+              };
+            });
+          } else if (sceneId === activeSceneId) {
+            console.log(`MIXED: Skipping current scene ${sceneId} (already added)`);
+          } else {
+            console.log(`MIXED: Scene ${sceneId} not found in allScenes`);
           }
         });
 
-        // 再添加当前场景的实体（会覆盖同ID的锁定场景实体）
-        if (currentSceneId && scenes[currentSceneId]) {
-          Object.assign(mixedEntities, scenes[currentSceneId].entities);
-        }
-
-        // 如果没有实体，回退到editor状态
-        if (Object.keys(mixedEntities).length === 0) {
-          return store.getState().editor.entities;
-        }
         return mixedEntities;
 
       default:
-        return store.getState().editor.entities;
+        return currentEntities;
     }
   };
 
@@ -403,17 +439,19 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
         canvas.height = canvas.clientHeight * pixelRatio;
 
         // 步进物理世界
-        const physicsRunning = store.getState().editor.physicsRunning;
+        const currentState = store.getState().editor;
+        const physicsRunning = currentState.physicsRunning;
         if (physicsRunning) physicsWorld.step(delta);
 
         // 获取需要渲染的实体并处理物理同步
         const renderEntities = getRenderEntities();
         const entities = Object.values(renderEntities);
-        const animations = store.getState().editor.animations;
+        const animations = currentState.animations;
 
         // 限制dispatch频率，避免无限循环
         const shouldDispatch = (now - lastDispatchTime) > DISPATCH_THROTTLE;
 
+        // ...existing code for physics and animation processing...
         // 自动创建/同步/销毁物理体
         const existingBodyIds = new Set(Array.from((physicsWorld as any).bodies?.keys?.() || []));
         entities.forEach((entity: Entity) => {
@@ -561,7 +599,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
       if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
       renderer.cleanup();
     };
-  }, []);
+  }, [resourceManager]); // 移除getRenderEntities依赖，避免循环
 
   return (
     <View style={styles.root}>
@@ -584,7 +622,7 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
         onDragOver={handleDragOver}
       />
       {/* 操作提示 */}
-      <View style={styles.tips}>
+      <View style={styles.tips} pointerEvents="none">
         <Text style={styles.tipsText}>
           {draggingEntityId ? "拖拽中..." : "点击添加实体 | 点击实体选中 | 拖拽移动实体"}
         </Text>

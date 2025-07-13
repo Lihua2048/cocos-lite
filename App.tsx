@@ -44,9 +44,15 @@ function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
   const [scenesLoaded, setScenesLoaded] = useState(false);
 
   // 获取场景组合模式状态
-  const { compositionMode } = useSelector((state: RootState) => ({
-    compositionMode: state.editor.sceneComposition.mode
+  const { compositionMode, sceneComposition } = useSelector((state: RootState) => ({
+    compositionMode: state.editor.sceneComposition.mode,
+    sceneComposition: state.editor.sceneComposition
   }));
+
+  // 调试场景组合状态变化
+  useEffect(() => {
+    console.log('App: Scene composition state changed:', sceneComposition);
+  }, [sceneComposition]);
 
   // 初始化场景加载和第二期核心功能
   useEffect(() => {

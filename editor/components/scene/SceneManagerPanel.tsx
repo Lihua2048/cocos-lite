@@ -10,7 +10,8 @@ import {
   renameScene,
   saveCurrentScene,
   setSelectedScenes,
-  toggleSceneLock
+  toggleSceneLock,
+  addEntity
 } from '../../../core/actions';
 import { SceneStorage } from '../../../core/utils/sceneStorage';
 
@@ -25,11 +26,22 @@ export default function SceneManagerPanel() {
   const sceneList = Object.values(scenes);
   const { mode, selectedScenes, lockedScenes } = sceneComposition;
 
+
   // 切换场景 - 根据组合模式处理
   const handleSwitchScene = (sceneId: string) => {
     if (mode === SceneCompositionMode.DEFAULT) {
       // 默认模式：单场景切换
       if (sceneId === currentSceneId) return;
+      console.log('SceneManagerPanel: Switching to scene', sceneId);
+      // 在切换前保存当前场景
+      dispatch(saveCurrentScene());
+      dispatch(switchScene(sceneId));
+    } else if (mode === SceneCompositionMode.MIXED) {
+      // 混合模式：也支持场景切换
+      if (sceneId === currentSceneId) return;
+      console.log('SceneManagerPanel: Switching to scene in mixed mode', sceneId);
+      // 在切换前保存当前场景
+      dispatch(saveCurrentScene());
       dispatch(switchScene(sceneId));
     }
   };
@@ -40,6 +52,8 @@ export default function SceneManagerPanel() {
       const newSelectedScenes = selectedScenes.includes(sceneId)
         ? selectedScenes.filter(id => id !== sceneId)
         : [...selectedScenes, sceneId];
+
+      console.log('SceneManagerPanel: Multi-select scene', sceneId, 'new selection:', newSelectedScenes);
       dispatch(setSelectedScenes(newSelectedScenes));
     }
   };
@@ -54,7 +68,23 @@ export default function SceneManagerPanel() {
     const name = prompt('场景名称:');
     if (name?.trim()) {
       const id = `scene_${Date.now()}`;
+      console.log('SceneManagerPanel: Creating new scene', id, name);
       dispatch(createScene(id, name.trim()));
+
+      // 为新场景创建一个示例实体，便于测试场景组合
+      setTimeout(() => {
+        // @ts-ignore
+        const { createDefaultEntity } = require("../../../core/types");
+        const entity = createDefaultEntity(`test-entity-${Date.now()}`, 'ui-button');
+        entity.position = { x: 50, y: 50 };
+        entity.properties = {
+          ...entity.properties,
+          text: `${name}场景实体`,
+          color: [Math.random(), Math.random(), Math.random(), 1] as [number, number, number, number]
+        };
+        console.log('SceneManagerPanel: Creating test entity for new scene', entity.id);
+        dispatch(addEntity(entity));
+      }, 100);
     }
   };
 

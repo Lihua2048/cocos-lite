@@ -23,6 +23,12 @@ export class GameBuilder {
    */
   async buildH5Game(): Promise<any> {
     console.log('开始构建 H5 游戏...');
+    console.log('场景数据:', this.sceneData.map(s => ({
+      id: s.id,
+      name: s.name,
+      entityCount: Object.keys(s.entities).length,
+      entities: Object.keys(s.entities)
+    })));
 
     // 1. 生成游戏运行时代码
     const gameRuntime = this.generateGameRuntime();
@@ -39,7 +45,16 @@ export class GameBuilder {
     // 5. 生成构建配置
     const buildConfig = this.generateBuildConfig('h5');
 
+    // 6. 不在浏览器环境中写入文件，直接返回结果
+    // await this.writeFiles({
+    //   'index.html': htmlTemplate,
+    //   'game.js': gameRuntime,
+    //   'data/scenes.json': sceneDataFile,
+    //   'config/build.json': buildConfig
+    // });
+
     console.log('H5 游戏构建完成！');
+    console.log('场景数据已生成:', JSON.parse(sceneDataFile));
 
     return {
       gameRuntime,
@@ -86,82 +101,233 @@ export class GameBuilder {
   private generateGameRuntime(platform: 'h5' | 'wechat' = 'h5'): string {
     return `
 // 游戏运行时 - ${platform}
-import { WebGLRenderer } from './runtime/renderer.js';
-import { PhysicsWorld } from './runtime/physics.js';
-import { SceneManager } from './runtime/scene-manager.js';
-import { GameLoop } from './runtime/game-loop.js';
-import sceneData from './data/scenes.json';
+// 简化版本，直接在浏览器中运行
 
-class Game {
+class SimpleGame {
   constructor() {
     this.canvas = null;
-    this.renderer = null;
-    this.physics = null;
-    this.sceneManager = null;
-    this.gameLoop = null;
-    this.resourceManager = null;
+    this.ctx = null;
+    this.sceneData = null;
+    this.currentScene = null;
+    this.entities = [];
+    this.animationId = null;
   }
 
   async init() {
-    // 初始化 Canvas
-    this.canvas = ${platform === 'wechat' ? 'wx.createCanvas()' : 'document.getElementById("gameCanvas")'};
+    console.log('SimpleGame: 开始初始化游戏...');
 
-    // 初始化渲染器
-    this.renderer = new WebGLRenderer(this.resourceManager);
-    await this.renderer.initialize(this.canvas);
+    // 获取Canvas
+    this.canvas = document.getElementById('gameCanvas');
+    if (!this.canvas) {
+      console.error('SimpleGame: 找不到游戏Canvas');
+      document.body.innerHTML += '<div style="color: red; font-size: 20px;">错误：找不到游戏Canvas</div>';
+      return;
+    }
 
-    // 初始化物理世界
-    this.physics = new PhysicsWorld();
+    console.log('SimpleGame: Canvas找到，尺寸:', this.canvas.width, 'x', this.canvas.height);
+    this.ctx = this.canvas.getContext('2d');
 
-    // 初始化场景管理器
-    this.sceneManager = new SceneManager(sceneData);
+    // 加载场景数据
+    try {
+      console.log('SimpleGame: 开始加载场景数据...');
+      console.log('SimpleGame: window.sceneData存在?', !!window.sceneData);
 
-    // 初始化游戏循环
-    this.gameLoop = new GameLoop(this.renderer, this.physics, this.sceneManager);
+      // 优先从window对象获取注入的场景数据
+      if (window.sceneData) {
+        this.sceneData = window.sceneData;
+        console.log('SimpleGame: 从window.sceneData加载场景数据成功');
+      } else if (window.SCENE_DATA) {
+        this.sceneData = window.SCENE_DATA;
+        console.log('SimpleGame: 从window.SCENE_DATA加载场景数据成功');
+      } else {
+        console.log('SimpleGame: 尝试通过fetch加载场景数据...');
+        const response = await fetch('./data/scenes.json');
+        this.sceneData = await response.json();
+        console.log('SimpleGame: 通过fetch加载场景数据成功');
+      }
 
-    console.log('游戏初始化完成');
+      console.log('SimpleGame: 场景数据加载完成:', this.sceneData);
+      console.log('SimpleGame: 场景数量:', this.sceneData?.scenes?.length || 0);
+
+    } catch (error) {
+      console.error('SimpleGame: 加载场景数据失败:', error);
+
+      // 创建默认场景数据
+      console.log('SimpleGame: 创建默认场景数据');
+      this.sceneData = {
+        scenes: [{
+          id: 'default',
+          name: '默认场景',
+          entities: {
+            'default-entity': {
+              id: 'default-entity',
+              type: 'ui-text',
+              position: { x: 50, y: 50 },
+              properties: {
+                width: 200,
+                height: 40,
+                text: '默认测试实体',
+                color: [1, 1, 1, 1],
+                textColor: [0, 0, 0, 1],
+                fontSize: 16,
+                textAlign: 'left',
+                backgroundType: 'color'
+              },
+              components: []
+            }
+          },
+          animations: {},
+          metadata: {
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            entityCount: 1
+          }
+        }],
+        metadata: {
+          buildTime: new Date().toISOString(),
+          version: '1.0.0',
+          totalScenes: 1
+        }
+      };
+      console.log('SimpleGame: 默认场景数据创建完成');
+    }
+
+    // 隐藏加载文字
+    const loading = document.getElementById('loading');
+    if (loading) loading.style.display = 'none';
+
+    console.log('SimpleGame: 游戏初始化完成');
   }
 
   start() {
+    console.log('开始游戏');
+
     // 加载第一个场景
-    const firstScene = this.sceneManager.getFirstScene();
-    if (firstScene) {
-      this.sceneManager.loadScene(firstScene.id);
+    if (this.sceneData && this.sceneData.scenes && this.sceneData.scenes.length > 0) {
+      this.loadScene(this.sceneData.scenes[0]);
     }
 
-    // 开始游戏循环
-    this.gameLoop.start();
+    // 开始渲染循环
+    this.gameLoop();
+  }
 
-    console.log('游戏开始运行');
+  loadScene(scene) {
+    console.log('SimpleGame: 开始加载场景:', scene.name);
+    console.log('SimpleGame: 场景实体数据:', scene.entities);
+    console.log('SimpleGame: 实体数量:', Object.keys(scene.entities || {}).length);
+
+    this.currentScene = scene;
+    this.entities = Object.values(scene.entities || {});
+
+    console.log('SimpleGame: 转换后的实体数组:', this.entities);
+    console.log('SimpleGame: 每个实体的详细信息:');
+    this.entities.forEach((entity, index) => {
+      console.log('实体 ' + index + ':', {
+        id: entity.id,
+        type: entity.type,
+        position: entity.position,
+        properties: entity.properties
+      });
+    });
+
+    // 更新页面标题
+    document.title = scene.name + ' - Cocos Game';
+  }
+
+  gameLoop() {
+    // 清空画布
+    this.ctx.fillStyle = '#222';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // 渲染实体
+    if (this.entities) {
+      this.entities.forEach(entity => {
+        this.renderEntity(entity);
+      });
+    }
+
+    // 显示场景信息
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '16px Arial';
+    this.ctx.fillText('场景: ' + (this.currentScene ? this.currentScene.name : '无'), 10, 25);
+    this.ctx.fillText('实体数量: ' + (this.entities ? this.entities.length : 0), 10, 45);
+
+    // 继续循环
+    this.animationId = requestAnimationFrame(() => this.gameLoop());
+  }
+
+  renderEntity(entity) {
+    if (!entity || !entity.position || !entity.properties) return;
+
+    const { position, properties, type } = entity;
+    const { x, y } = position;
+    const { width, height, color, text } = properties;
+
+    // 保存上下文
+    this.ctx.save();
+
+    // 绘制背景
+    if (color && Array.isArray(color)) {
+      this.ctx.fillStyle = 'rgba(' + Math.floor(color[0] * 255) + ', ' + Math.floor(color[1] * 255) + ', ' + Math.floor(color[2] * 255) + ', ' + (color[3] || 1) + ')';
+    } else {
+      this.ctx.fillStyle = type === 'sprite' ? '#fff' : '#ccc';
+    }
+
+    this.ctx.fillRect(x, y, width, height);
+
+    // 绘制文本
+    if (text && type.startsWith('ui-')) {
+      this.ctx.fillStyle = '#000';
+      this.ctx.font = (properties.fontSize || 16) + 'px Arial';
+      this.ctx.textAlign = properties.textAlign || 'left';
+      this.ctx.fillText(text, x + 5, y + height/2 + 5);
+    }
+
+    // 绘制边框
+    this.ctx.strokeStyle = '#666';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(x, y, width, height);
+
+    // 恢复上下文
+    this.ctx.restore();
   }
 
   stop() {
-    if (this.gameLoop) {
-      this.gameLoop.stop();
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
     }
   }
 }
 
-// 游戏实例
-const game = new Game();
+// 启动游戏
+const game = new SimpleGame();
 
 ${platform === 'wechat' ? `
-// 微信小游戏入口
+// 微信小游戏适配
 wx.onShow(() => {
   game.init().then(() => game.start());
 });
-
-wx.onHide(() => {
-  game.stop();
-});
 ` : `
-// H5 游戏入口
-window.addEventListener('load', () => {
-  game.init().then(() => game.start());
+// H5版本
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM已加载，开始初始化游戏');
+
+  // 等待一下确保所有脚本都已加载
+  setTimeout(() => {
+    console.log('开始执行游戏初始化');
+    game.init().then(() => {
+      console.log('游戏初始化完成，开始游戏');
+      game.start();
+    }).catch(error => {
+      console.error('游戏初始化失败:', error);
+    });
+  }, 100);
 });
 `}
 
-export default game;
+// 导出游戏实例
+window.game = game;
 `;
   }
 
@@ -218,7 +384,7 @@ export default game;
     <div id="loading">正在加载游戏...</div>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-    <script type="module" src="./game.js"></script>
+    <!-- 游戏代码将在这里注入 -->
 </body>
 </html>
 `;
@@ -339,6 +505,47 @@ console.log('微信小游戏适配器加载完成');
     const textureFiles = this.resourceManager.getAllTextures();
 
     console.log('资源文件复制完成');
+  }
+
+  /**
+   * 写入文件到输出目录 (浏览器版本 - 模拟写入)
+   */
+  private async writeFiles(files: Record<string, string>): Promise<void> {
+    console.log('构建文件准备完成:');
+
+    for (const [filePath, content] of Object.entries(files)) {
+      console.log(`文件: ${filePath} (${content.length} 字符)`);
+
+      // 在浏览器环境中，我们将文件内容存储到localStorage或直接提供下载
+      if (typeof window !== 'undefined') {
+        // 存储到localStorage便于调试
+        localStorage.setItem(`build_${filePath.replace(/[\/\\]/g, '_')}`, content);
+
+        // 如果是主要文件，提供下载链接
+        if (filePath === 'index.html' || filePath === 'data/scenes.json') {
+          this.downloadFile(filePath, content);
+        }
+      }
+    }
+
+    console.log('所有文件已准备完成，可通过浏览器开发者工具查看localStorage中的build_*项目');
+  }
+
+  /**
+   * 在浏览器中下载文件
+   */
+  private downloadFile(filename: string, content: string): void {
+    if (typeof window === 'undefined') return;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.replace(/[\/\\]/g, '_');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   }
 }
 
