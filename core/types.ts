@@ -121,7 +121,8 @@ export type EditorActionType =
   | "PLAY_ANIMATION"
   | "PAUSE_ANIMATION"
   | "STOP_ANIMATION"
-  | "SAVE_ANIMATION";
+  | "SAVE_ANIMATION"
+  | "LOAD_SAVED_STATE";
 
 // 支持多属性关键帧动画
 export interface AnimationKeyframe {
@@ -135,6 +136,7 @@ export interface AnimationKeyframe {
 export interface Animation {
   propertyName: string; // 兼容旧逻辑，可忽略
   keyframes: AnimationKeyframe[];
+  duration?: number; // 动画持续时间（秒）
 }
 
 export interface EntityAnimation {

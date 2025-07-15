@@ -1,18 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, TextureResource } from '../../../core/types';
-import { saveAnimation, playAnimation, stopAnimation } from '../../../core/actions';
+import { RootState } from '../../../core/types';
+import { saveAnimation } from '../../../core/actions';
 import './TimelineKeyframeEditor.css';
 
-interface KeyFrame {
+interface Keyframe {
   time: number;
-  value: number | string | [number, number, number, number] | null | undefined;
+  value: any;
   id: string;
 }
 
 interface AnimationTrack {
   property: string;
-  keyframes: KeyFrame[];
+  keyframes: Keyframe[];
   color: string;
 }
 
@@ -33,7 +33,6 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
   const dispatch = useDispatch();
   const entity = useSelector((state: RootState) => state.editor.entities[entityId]);
   const savedAnimations = useSelector((state: RootState) => state.editor.animations || {});
-  const textures = useSelector((state: RootState) => state.editor.textures);
 
   // 动画控制状态
   const [selectedAnimationName, setSelectedAnimationName] = useState('');
@@ -105,7 +104,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
       },
       {
         property: 'color',
-        keyframes: [{ time: 0, value: defaults['color'] as [number, number, number, number], id: 'c_0' }],
+        keyframes: [{ time: 0, value: defaults['color'], id: 'c_0' }],
         color: '#c0392b'
       },
       {
@@ -138,7 +137,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
   const findKeyframeAtTime = (trackIndex: number, clickTime: number) => {
     const track = tracks[trackIndex];
     return track.keyframes.findIndex(kf =>
-      Math.abs((kf.time || 0) - clickTime) < frameStep / 2
+      Math.abs(kf.time - clickTime) < frameStep / 2
     );
   };
 
@@ -191,7 +190,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
     const newTracks = [...tracks];
     const track = newTracks[newKeyframeData.trackIndex];
 
-    const newKeyframe: KeyFrame = {
+    const newKeyframe: Keyframe = {
       time: newKeyframeData.time,
       value: newKeyframeData.value,
       id: `${track.property}_${Date.now()}`
@@ -269,7 +268,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
       return;
     }
 
-    // 多轨合一保存 - 修复保存格式
+    // 多轨合一保存
     const keyframes: any[] = [];
 
     // 按时间点合并所有轨道的关键帧
@@ -290,39 +289,21 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
     });
 
     dispatch(saveAnimation(selectedAnimationName, 'multi-track', keyframes, duration));
-    alert(`动画 "${selectedAnimationName}" 已保存成功！持续时间: ${duration}秒`);
+    alert(`动画 "${selectedAnimationName}" 已保存成功！`);
   };
 
   // 播放/暂停动画
   const togglePlayAnimation = () => {
-    if (!selectedAnimationName) {
-      alert('请先选择一个动画，或点击保存按钮创建新动画');
-      return;
-    }
-
-    // 确保动画数据存在
-    const animationData = savedAnimations[selectedAnimationName];
-    if (!animationData) {
-      alert(`动画 "${selectedAnimationName}" 不存在，请先保存动画数据`);
-      return;
-    }
-
+    setIsPlaying(!isPlaying);
     if (!isPlaying) {
       // 开始播放动画逻辑
-      console.log('开始播放动画:', selectedAnimationName, '动画数据:', animationData);
-      dispatch(playAnimation(entityId, selectedAnimationName, isLooping));
-      setIsPlaying(true);
-    } else {
-      // 停止播放动画
-      console.log('停止播放动画:', selectedAnimationName);
-      dispatch(stopAnimation(entityId));
-      setIsPlaying(false);
+      console.log('开始播放动画:', selectedAnimationName);
     }
   };
 
   // 生成时间轴刻度
-  const generateTimeMarks = () => {
-    const marks = [];
+  const generateTimeMarks = (): JSX.Element[] => {
+    const marks: JSX.Element[] = [];
     const stepCount = Math.floor(duration / frameStep);
     for (let i = 0; i <= stepCount; i++) {
       const time = i * frameStep;
@@ -409,14 +390,15 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
         {/* 保存按钮 */}
         <button
           onClick={saveCurrentAnimation}
+          disabled={!selectedAnimationName}
           style={{
-            backgroundColor: '#27ae60',
+            backgroundColor: selectedAnimationName ? '#27ae60' : '#bdc3c7',
             color: 'white',
             border: 'none',
             padding: '4px 8px',
             borderRadius: '3px',
             fontSize: '11px',
-            cursor: 'pointer'
+            cursor: selectedAnimationName ? 'pointer' : 'not-allowed'
           }}
         >
           💾
@@ -462,8 +444,8 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
         </button>
       </div>
 
-      {/* 时间轴和轨道 - 移到底部 */}
-      <div className="timeline-content" style={{ position: 'relative', order: 2 }}>
+      {/* 时间轴和轨道 */}
+      <div className="timeline-content" style={{ position: 'relative' }}>
         <svg
           ref={svgRef}
           width={width}
@@ -474,7 +456,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
             backgroundColor: 'white'
           }}
         >
-          {/* 背景网格 - 时间刻度在底部 */}
+          {/* 背景网格 */}
           {generateTimeMarks()}
 
           {/* 当前时间指示器 */}
@@ -489,7 +471,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
 
           {/* 轨道 */}
           {tracks.map((track, trackIndex) => {
-            const trackY = trackIndex * 25 + 10; // 减少顶部边距，为底部时间留空间
+            const trackY = trackIndex * 25 + 30;
             return (
               <g key={track.property}>
                 {/* 轨道背景线 */}
@@ -607,7 +589,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
                 min="0"
                 max={duration}
                 step={frameStep}
-                value={Number(tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].time) || 0}
+                value={tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].time}
                 onChange={(e) => {
                   const newTime = parseFloat(e.target.value);
                   const newTracks = [...tracks];
@@ -629,13 +611,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
               {tracks[selectedKeyframe.trackIndex].property === 'color' ? (
                 <input
                   type="color"
-                  value={(() => {
-                    const colorValue = tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].value;
-                    if (Array.isArray(colorValue) && colorValue.length >= 3) {
-                      return `#${Math.floor(colorValue[0] * 255).toString(16).padStart(2, '0')}${Math.floor(colorValue[1] * 255).toString(16).padStart(2, '0')}${Math.floor(colorValue[2] * 255).toString(16).padStart(2, '0')}`;
-                    }
-                    return '#ffffff';
-                  })()}
+                  value={`#${Math.floor(tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].value[0] * 255).toString(16).padStart(2, '0')}${Math.floor(tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].value[1] * 255).toString(16).padStart(2, '0')}${Math.floor(tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].value[2] * 255).toString(16).padStart(2, '0')}`}
                   onChange={(e) => {
                     const hex = e.target.value;
                     const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -645,34 +621,11 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
                   }}
                   style={{ width: '100%', height: '20px' }}
                 />
-              ) : tracks[selectedKeyframe.trackIndex].property === 'texture' ? (
-                <select
-                  value={String(tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].value || '')}
-                  onChange={(e) => {
-                    updateKeyframeValue(selectedKeyframe.trackIndex, selectedKeyframe.keyframeIndex, e.target.value);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '2px',
-                    border: '1px solid #ddd',
-                    borderRadius: '2px',
-                    fontSize: '10px'
-                  }}
-                >
-                  <option value="">无纹理</option>
-                  {textures.map((texture: TextureResource) =>
-                    typeof texture === "string" ? (
-                      <option key={texture} value={texture}>{texture}</option>
-                    ) : (
-                      <option key={texture.id} value={texture.id}>{texture.name}</option>
-                    )
-                  )}
-                </select>
               ) : (
                 <input
                   type="number"
                   step="0.1"
-                  value={Number(tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].value) || 0}
+                  value={tracks[selectedKeyframe.trackIndex].keyframes[selectedKeyframe.keyframeIndex].value}
                   onChange={(e) => {
                     const newValue = parseFloat(e.target.value);
                     updateKeyframeValue(selectedKeyframe.trackIndex, selectedKeyframe.keyframeIndex, newValue);
@@ -770,7 +723,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
                 min="0"
                 max={duration}
                 step={frameStep}
-                value={Number(newKeyframeData.time) || 0}
+                value={newKeyframeData.time}
                 onChange={(e) => {
                   const newTime = parseFloat(e.target.value);
                   setNewKeyframeData({ ...newKeyframeData, time: newTime });
@@ -787,60 +740,22 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
 
             <div style={{ marginBottom: '8px' }}>
               <label style={{ display: 'block', marginBottom: '2px', fontSize: '10px' }}>值:</label>
-              {tracks[newKeyframeData.trackIndex].property === 'color' ? (
-                <input
-                  type="color"
-                  value="#ffffff"
-                  onChange={(e) => {
-                    const hex = e.target.value;
-                    const r = parseInt(hex.slice(1, 3), 16) / 255;
-                    const g = parseInt(hex.slice(3, 5), 16) / 255;
-                    const b = parseInt(hex.slice(5, 7), 16) / 255;
-                    setNewKeyframeData({ ...newKeyframeData, value: [r, g, b, 1] });
-                  }}
-                  style={{ width: '100%', height: '20px' }}
-                />
-              ) : tracks[newKeyframeData.trackIndex].property === 'texture' ? (
-                <select
-                  value={newKeyframeData.value || ''}
-                  onChange={(e) => {
-                    setNewKeyframeData({ ...newKeyframeData, value: e.target.value });
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '2px',
-                    border: '1px solid #ddd',
-                    borderRadius: '2px',
-                    fontSize: '10px'
-                  }}
-                >
-                  <option value="">无纹理</option>
-                  {textures.map((texture: TextureResource) =>
-                    typeof texture === "string" ? (
-                      <option key={texture} value={texture}>{texture}</option>
-                    ) : (
-                      <option key={texture.id} value={texture.id}>{texture.name}</option>
-                    )
-                  )}
-                </select>
-              ) : (
-                <input
-                  type="number"
-                  step="0.1"
-                  value={Number(newKeyframeData.value) || 0}
-                  onChange={(e) => {
-                    const newValue = parseFloat(e.target.value);
-                    setNewKeyframeData({ ...newKeyframeData, value: newValue });
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '2px',
-                    border: '1px solid #ddd',
-                    borderRadius: '2px',
-                    fontSize: '10px'
-                  }}
-                />
-              )}
+              <input
+                type="number"
+                step="0.1"
+                value={newKeyframeData.value}
+                onChange={(e) => {
+                  const newValue = parseFloat(e.target.value);
+                  setNewKeyframeData({ ...newKeyframeData, value: newValue });
+                }}
+                style={{
+                  width: '100%',
+                  padding: '2px',
+                  border: '1px solid #ddd',
+                  borderRadius: '2px',
+                  fontSize: '10px'
+                }}
+              />
             </div>
 
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -921,7 +836,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
               <label style={{ display: 'block', marginBottom: '2px', fontSize: '12px' }}>动画时长(秒):</label>
               <input
                 type="number"
-                value={Number(newAnimationDuration) || 10}
+                value={newAnimationDuration}
                 onChange={(e) => setNewAnimationDuration(parseFloat(e.target.value))}
                 style={{
                   width: '100%',
@@ -938,7 +853,7 @@ const TimelineKeyframeEditor: React.FC<TimelineKeyframeEditorProps> = ({
               <input
                 type="number"
                 step="0.1"
-                value={Number(newAnimationFrameStep) || 0.5}
+                value={newAnimationFrameStep}
                 onChange={(e) => setNewAnimationFrameStep(parseFloat(e.target.value))}
                 style={{
                   width: '100%',

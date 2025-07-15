@@ -371,8 +371,11 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
 
   function interpolateFrame(keyframes: any[], t: number) {
     if (!keyframes || keyframes.length === 0) return undefined;
+
+    // 检查关键帧数据格式
     let prev = keyframes[0];
     let next = keyframes[keyframes.length - 1];
+
     for (let i = 0; i < keyframes.length - 1; i++) {
       if (t >= keyframes[i].time && t <= keyframes[i + 1].time) {
         prev = keyframes[i];
@@ -380,30 +383,105 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
         break;
       }
     }
+
     if (prev === next) return prev;
+
     const ratio = (t - prev.time) / (next.time - prev.time);
-    // 合成 text 字段，若关键帧未设置则为 undefined
-    let text;
-    if ('text' in prev && 'text' in next) {
-      // 若前后帧 text 相同则直接用，否则插值时取靠近当前时间的
-      if (prev.text === next.text) {
-        text = prev.text;
-      } else {
-        text = ratio < 0.5 ? prev.text : next.text;
+
+    // 处理简单数值关键帧（来自TimelineKeyframeEditor）
+    if (typeof prev.value === 'number' && typeof next.value === 'number') {
+      return {
+        time: t,
+        value: lerp(prev.value, next.value, ratio)
+      };
+    }
+
+    // 处理复杂对象关键帧（旧格式兼容）
+    if (prev.position && next.position) {
+      // 合成 text 字段，若关键帧未设置则为 undefined
+      let text;
+      if ('text' in prev && 'text' in next) {
+        // 若前后帧 text 相同则直接用，否则插值时取靠近当前时间的
+        if (prev.text === next.text) {
+          text = prev.text;
+        } else {
+          text = ratio < 0.5 ? prev.text : next.text;
+        }
+      }
+
+      return {
+        time: t,
+        position: {
+          x: lerp(prev.position?.x || 0, next.position?.x || 0, ratio),
+          y: lerp(prev.position?.y || 0, next.position?.y || 0, ratio)
+        },
+        width: lerp(prev.width || 0, next.width || 0, ratio),
+        height: lerp(prev.height || 0, next.height || 0, ratio),
+        color: prev.color && next.color ? lerpColor(prev.color, next.color, ratio) : (prev.color || next.color),
+        texture: ratio < 0.5 ? prev.texture : next.texture,
+        ...(text !== undefined ? { text } : {})
+      };
+    }
+
+    // 默认返回原始帧
+    return prev;
+  }
+
+  // 多轨动画插值函数
+  function interpolateMultiTrackFrame(keyframes: any[], t: number) {
+    if (!keyframes || keyframes.length === 0) return undefined;
+
+    // 找到时间区间
+    let prev = keyframes[0];
+    let next = keyframes[keyframes.length - 1];
+
+    for (let i = 0; i < keyframes.length - 1; i++) {
+      if (t >= keyframes[i].time && t <= keyframes[i + 1].time) {
+        prev = keyframes[i];
+        next = keyframes[i + 1];
+        break;
       }
     }
-    return {
-      time: t,
-      position: {
-        x: lerp(prev.position.x, next.position.x, ratio),
-        y: lerp(prev.position.y, next.position.y, ratio)
-      },
-      width: lerp(prev.width, next.width, ratio),
-      height: lerp(prev.height, next.height, ratio),
-      color: lerpColor(prev.color, next.color, ratio),
-      texture: ratio < 0.5 ? prev.texture : next.texture,
-      ...(text !== undefined ? { text } : {})
-    };
+
+    if (prev === next || prev.time === next.time) return prev;
+
+    const ratio = (t - prev.time) / (next.time - prev.time);
+    const result: any = { time: t };
+
+    // 插值所有属性
+    Object.keys(prev).forEach(key => {
+      if (key === 'time') return;
+
+      const prevVal = prev[key];
+      const nextVal = next[key];
+
+      if (prevVal === undefined && nextVal === undefined) return;
+      if (prevVal === undefined) { result[key] = nextVal; return; }
+      if (nextVal === undefined) { result[key] = prevVal; return; }
+
+      // 数值插值
+      if (typeof prevVal === 'number' && typeof nextVal === 'number') {
+        result[key] = lerp(prevVal, nextVal, ratio);
+      }
+      // 颜色数组插值
+      else if (Array.isArray(prevVal) && Array.isArray(nextVal) && prevVal.length === 4 && nextVal.length === 4) {
+        result[key] = lerpColor(
+          prevVal as [number, number, number, number],
+          nextVal as [number, number, number, number],
+          ratio
+        );
+      }
+      // 字符串属性（如texture）：取更接近的值
+      else if (typeof prevVal === 'string' || typeof nextVal === 'string') {
+        result[key] = ratio < 0.5 ? prevVal : nextVal;
+      }
+      // 其他类型直接取前一个值
+      else {
+        result[key] = prevVal;
+      }
+    });
+
+    return result;
   }
 
   // 初始化WebGL渲染器
@@ -520,54 +598,168 @@ const Canvas: React.FC<CanvasProps> = ({ resourceManager }) => {
             let shouldStop = false;
             let maxTime: number = newTime;
 
-            if (anim && Array.isArray(anim.keyframes) && anim.keyframes.length > 0) {
-              maxTime = anim.keyframes[anim.keyframes.length - 1].time;
-              if (newTime >= maxTime) {
-                shouldStop = true;
+            console.log(`处理实体 ${entity.id} 的动画 ${animName}，当前时间: ${entity.animation.currentTime.toFixed(2)}s，新时间: ${newTime.toFixed(2)}s`);
+
+            if (anim && anim.keyframes && anim.keyframes.length > 0) {
+              // 处理多轨动画格式（来自TimelineKeyframeEditor）
+              if (anim.propertyName === 'multi-track') {
+                // 多轨动画：keyframes是按时间点合并的数据
+                maxTime = anim.duration || 10; // 使用保存的持续时间
+                console.log(`多轨动画 ${animName}，持续时间: ${maxTime}s，关键帧数量: ${anim.keyframes.length}`);
+
+                // 循环播放逻辑
+                const isLoop = !!entity.animation.loop;
+                let safeTime = newTime;
+                let nextPlaying = true;
+
+                if (newTime >= maxTime) {
+                  console.log(`动画 ${animName} 到达结束时间，循环模式: ${isLoop}`);
+                  if (isLoop) {
+                    // 循环播放：重置时间到开始
+                    safeTime = newTime % maxTime;
+                    nextPlaying = true;
+                  } else {
+                    // 非循环：停止在最后一帧
+                    safeTime = maxTime;
+                    nextPlaying = false;
+                  }
+                }
+
+                // 从合并的关键帧数据中插值所有属性
+                const frame = interpolateMultiTrackFrame(anim.keyframes, safeTime);
+                if (frame && shouldDispatch) {
+                  // 批量更新实体的所有动画属性
+                  let updatedEntity = { ...entity };
+
+                  // 应用各种属性的动画值
+                  if (frame['position.x'] !== undefined) {
+                    updatedEntity.position = { ...updatedEntity.position, x: frame['position.x'] };
+                  }
+                  if (frame['position.y'] !== undefined) {
+                    updatedEntity.position = { ...updatedEntity.position, y: frame['position.y'] };
+                  }
+                  if (frame.width !== undefined) {
+                    updatedEntity.properties = { ...updatedEntity.properties, width: frame.width };
+                  }
+                  if (frame.height !== undefined) {
+                    updatedEntity.properties = { ...updatedEntity.properties, height: frame.height };
+                  }
+                  if (frame.color !== undefined) {
+                    updatedEntity.properties = { ...updatedEntity.properties, color: frame.color };
+                  }
+                  // 暂时跳过rotation属性，因为类型定义中没有
+                  // if (frame.rotation !== undefined) {
+                  //   updatedEntity.properties = { ...updatedEntity.properties, rotation: frame.rotation };
+                  // }
+                  if (frame.texture !== undefined) {
+                    updatedEntity.properties = { ...updatedEntity.properties, texture: frame.texture };
+                  }
+
+                  // 使用dispatch更新实体状态
+                  if (shouldDispatch) {
+                    dispatch(updateEntity(entity.id, {
+                      position: updatedEntity.position,
+                      properties: updatedEntity.properties
+                    }));
+
+                    // 更新动画状态
+                    dispatch({
+                      type: 'UPDATE_ENTITY_ANIMATION',
+                      payload: {
+                        entityId: entity.id,
+                        animation: {
+                          ...entity.animation,
+                          currentTime: safeTime,
+                          playing: nextPlaying,
+                        }
+                      }
+                    });
+                  }
+                }
+              } else {
+                // 处理旧格式：按属性分离的关键帧
+                maxTime = anim.keyframes[anim.keyframes.length - 1].time;
+
+                // 循环播放逻辑
+                const isLoop = !!entity.animation.loop;
+                let safeTime = newTime;
+                let nextPlaying = true;
+
+                if (newTime >= maxTime) {
+                  if (isLoop) {
+                    // 循环播放：重置时间到开始
+                    safeTime = 0;
+                    nextPlaying = true;
+                  } else {
+                    // 非循环：停止在最后一帧
+                    safeTime = maxTime;
+                    nextPlaying = false;
+                  }
+                }
+
+                const frame = interpolateFrame(anim.keyframes, safeTime);
+                if (frame && frame.value !== undefined && shouldDispatch) {
+                  // 应用具体属性的动画值
+                  let updates: any = {
+                    animation: {
+                      ...entity.animation,
+                      currentTime: safeTime,
+                      playing: nextPlaying
+                    }
+                  };
+
+                  switch (anim.propertyName) {
+                    case 'position.x':
+                      updates.position = {
+                        ...entity.position,
+                        x: frame.value
+                      };
+                      break;
+                    case 'position.y':
+                      updates.position = {
+                        ...entity.position,
+                        y: frame.value
+                      };
+                      break;
+                    case 'scale.x':
+                      // 需要在实体上添加scale属性支持
+                      updates.scale = {
+                        x: frame.value,
+                        y: (entity as any).scale?.y || 1
+                      };
+                      break;
+                    case 'scale.y':
+                      updates.scale = {
+                        x: (entity as any).scale?.x || 1,
+                        y: frame.value
+                      };
+                      break;
+                    case 'rotation':
+                      updates.rotation = frame.value;
+                      break;
+                  }
+
+                  dispatch(updateEntity(entity.id, updates));
+                }
               }
-            }
-
-            // 循环播放逻辑
-            const isLoop = !!entity.animation.loop;
-            const safeTime = shouldStop ? maxTime : newTime;
-            const nextTime = shouldStop ? (isLoop ? 0 : 0) : safeTime;
-            const nextPlaying = shouldStop ? isLoop : true;
-
-            if (anim && Array.isArray(anim.keyframes) && anim.keyframes.length > 0) {
-              const frame = interpolateFrame(anim.keyframes, safeTime);
-              if (frame && shouldDispatch) {
-                // 修复：text 字段安全合并
-                let mergedText = (frame.text !== undefined && frame.text !== null && frame.text !== '')
-                  ? frame.text
-                  : (entity.properties && 'text' in entity.properties ? entity.properties.text : undefined);
-
-                dispatch(updateEntity(entity.id, {
+            } else if (shouldDispatch && entity.animation && entity.animation.playing) {
+              // 只推进时间，但仅在动画播放时
+              // 注意：这里只有在没有动画数据但动画状态为播放中时才执行
+              console.log(`实体 ${entity.id} 的动画 ${entity.animation.currentAnimation} 没有找到动画数据`);
+              dispatch({
+                type: 'UPDATE_ENTITY_ANIMATION',
+                payload: {
+                  entityId: entity.id,
                   animation: {
                     ...entity.animation,
-                    currentTime: nextTime,
-                    playing: nextPlaying
-                  },
-                  position: frame.position,
-                  properties: {
-                    ...entity.properties,
-                    width: frame.width,
-                    height: frame.height,
-                    color: frame.color || entity.properties.color || [1,1,1,1],
-                    texture: frame.texture,
-                    ...(mergedText !== undefined ? { text: mergedText } : {})
+                    currentTime: entity.animation.currentTime + delta,
+                    playing: entity.animation.playing // 保持原有的播放状态
                   }
-                }));
-              }
-            } else if (shouldDispatch) {
-              // 只推进时间
-              dispatch(updateEntity(entity.id, {
-                animation: {
-                  ...entity.animation,
-                  currentTime: nextTime,
-                  playing: nextPlaying
                 }
-              }));
+              });
             }
+          } else if (entity.animation && entity.animation.playing) {
+            console.log(`实体 ${entity.id} 动画状态异常: playing=${entity.animation.playing}, currentAnimation=${entity.animation.currentAnimation}`);
           }
         });
 

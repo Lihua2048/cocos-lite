@@ -1,7 +1,13 @@
 // 动画关键帧相关
-export const saveAnimation = (name: string, propertyName: string, keyframes: any[]) => ({
+export const saveAnimation = (name: string, propertyName: string, keyframes: any[], duration?: number) => ({
   type: 'SAVE_ANIMATION',
-  payload: { name, propertyName, keyframes }
+  payload: { name, propertyName, keyframes, duration }
+});
+
+// 初始化状态相关
+export const loadSavedState = (savedState: any): EditorAction => ({
+  type: 'LOAD_SAVED_STATE' as const,
+  payload: savedState
 });
 
 // 导出项目管理相关actions
@@ -20,6 +26,7 @@ export const UPDATE_ENTITY_TEXTURE = "UPDATE_ENTITY_TEXTURE";
 export const PLAY_ANIMATION = 'PLAY_ANIMATION';
 export const PAUSE_ANIMATION = 'PAUSE_ANIMATION';
 export const STOP_ANIMATION = 'STOP_ANIMATION';
+export const UPDATE_ENTITY_ANIMATION = 'UPDATE_ENTITY_ANIMATION';
 
 
 import { Animation } from './types';
@@ -33,6 +40,7 @@ export type EditorAction =
   | { type: "PLAY_ANIMATION"; payload: { entityId: string; name: string; loop?: boolean } }
   | { type: "PAUSE_ANIMATION"; payload: { entityId: string } }
   | { type: "STOP_ANIMATION"; payload: { entityId: string } }
+  | { type: "UPDATE_ENTITY_ANIMATION"; payload: { entityId: string; animation: any } }
   | { type: "SAVE_ANIMATION"; payload: { name: string; propertyName: string; keyframes: Animation['keyframes'] } }
   // 物理组件相关
   | { type: "ADD_PHYSICS_COMPONENT"; payload: { entityId: string; component: import("./types").PhysicsComponent } }
@@ -56,7 +64,9 @@ export type EditorAction =
   | { type: "SWITCH_PROJECT"; payload: { projectId: string } }
   | { type: "LOAD_PROJECT_SCENES"; payload: { projectId: string } }
   | { type: "CREATE_PROJECT"; payload: { project: any } }
-  | { type: "LOAD_PROJECT_DATA"; payload: { scenes: any; currentSceneId: string } };
+  | { type: "LOAD_PROJECT_DATA"; payload: { scenes: any; currentSceneId: string } }
+  // 自动保存相关
+  | { type: "LOAD_SAVED_STATE"; payload: any };
 
 // 场景相关
 export const createScene = (id: string, name: string) => ({

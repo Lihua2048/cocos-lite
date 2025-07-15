@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PhysicsPanel from '../physics/PhysicsPanel';
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -9,8 +9,6 @@ import {
 } from "../../../core/actions";
 import { RootState, TextureResource } from "../../../core/types";
 import { EntityProperty } from "../../../core/types";
-import KeyframeEditor from "../animation/KeyframeEditor";
-import AnimationControls from "../animation/AnimationControls";
 import ColorPicker from "../common/ColorPicker";
 import TimelineKeyframeEditor from "../animation/TimelineKeyframeEditor";
 import "./PropertiesPanel.css";
@@ -27,6 +25,46 @@ export default function PropertiesPanel() {
     selectedEntityId && entities[selectedEntityId]
       ? entities[selectedEntityId]
       : null;
+
+  // 面板宽度管理
+  const [panelWidth, setPanelWidth] = useState(320); // 默认宽度
+  const [isResizing, setIsResizing] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startWidth, setStartWidth] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // 拖拽开始
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsResizing(true);
+    setStartX(e.clientX);
+    setStartWidth(panelWidth);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    e.preventDefault();
+  };
+
+  // 拖拽过程中
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizing) return;
+    const deltaX = startX - e.clientX; // 注意：向左拖拽增加宽度
+    const newWidth = Math.max(250, Math.min(600, startWidth + deltaX)); // 限制宽度范围
+    setPanelWidth(newWidth);
+  };
+
+  // 拖拽结束
+  const handleMouseUp = () => {
+    setIsResizing(false);
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  // 清理事件监听器
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   // 本地状态管理编辑中的属性（支持 sprite 和 ui 类型）
   const [editableProps, setEditableProps] = useState({
@@ -149,7 +187,36 @@ export default function PropertiesPanel() {
 
   if (!selectedEntity) {
     return (
-      <div className="prop-container" style={{height:'100%', overflow:'auto'}}>
+      <div
+        ref={panelRef}
+        className="prop-container"
+        style={{
+          height: '100%',
+          overflow: 'auto',
+          width: panelWidth,
+          minWidth: '250px',
+          maxWidth: '600px',
+          position: 'relative',
+          borderLeft: '1px solid #ddd'
+        }}
+      >
+        {/* 拖拽手柄 */}
+        <div
+          className="resize-handle"
+          onMouseDown={handleMouseDown}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '4px',
+            cursor: 'col-resize',
+            backgroundColor: isResizing ? '#007acc' : 'transparent',
+            borderLeft: '1px solid #ddd',
+            zIndex: 1000
+          }}
+          title="拖拽调整面板宽度"
+        />
         <div className="prop-no-selection">未选择实体</div>
       </div>
     );
@@ -169,7 +236,35 @@ export default function PropertiesPanel() {
   // 根据类型渲染不同属性面板
   if (selectedEntity.type === 'sprite') {
     return (
-      <div className="prop-container">
+      <div
+        ref={panelRef}
+        className="prop-container"
+        style={{
+          width: panelWidth,
+          minWidth: '250px',
+          maxWidth: '600px',
+          position: 'relative',
+          borderLeft: '1px solid #ddd'
+        }}
+      >
+        {/* 拖拽手柄 */}
+        <div
+          className="resize-handle"
+          onMouseDown={handleMouseDown}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '4px',
+            cursor: 'col-resize',
+            backgroundColor: isResizing ? '#007acc' : 'transparent',
+            borderLeft: '1px solid #ddd',
+            zIndex: 1000
+          }}
+          title="拖拽调整面板宽度"
+        />
+        <div style={{ paddingLeft: '8px' }}> {/* 给内容留出拖拽手柄的空间 */}
         <div className="prop-group">
           <div className="prop-title">精灵属性</div>
           <div className="prop-label">纹理:</div>
@@ -203,13 +298,9 @@ export default function PropertiesPanel() {
           </button>
         </div>
         <div className="prop-group">
-          <div className="prop-subtitle">帧动画编辑器（泳道图）</div>
+          <div className="prop-subtitle">帧动画编辑器</div>
           <TimelineKeyframeEditor entityId={selectedEntity.id} />
         </div>
-        <div className="prop-group"><AnimationControls entityId={selectedEntity.id} /></div>
-        {selectedEntity.animation && (
-          <div className="prop-label">当前动画: {selectedEntity.animation.currentAnimation}</div>
-        )}
         <div className="prop-group">
           <div className="prop-subtitle">位置</div>
           <div className="prop-row">
@@ -233,12 +324,41 @@ export default function PropertiesPanel() {
             }}
           />
         </div>
+        </div>
       </div>
     );
   } else {
     // UI组件属性面板
     return (
-      <div className="prop-container">
+      <div
+        ref={panelRef}
+        className="prop-container"
+        style={{
+          width: panelWidth,
+          minWidth: '250px',
+          maxWidth: '600px',
+          position: 'relative',
+          borderLeft: '1px solid #ddd'
+        }}
+      >
+        {/* 拖拽手柄 */}
+        <div
+          className="resize-handle"
+          onMouseDown={handleMouseDown}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '4px',
+            cursor: 'col-resize',
+            backgroundColor: isResizing ? '#007acc' : 'transparent',
+            borderLeft: '1px solid #ddd',
+            zIndex: 1000
+          }}
+          title="拖拽调整面板宽度"
+        />
+        <div style={{ paddingLeft: '8px' }}> {/* 给内容留出拖拽手柄的空间 */}
         <div className="prop-group"><div className="prop-title">UI组件属性</div></div>
         <div className="prop-group">
           <div className="prop-subtitle">背景类型</div>
@@ -323,6 +443,7 @@ export default function PropertiesPanel() {
             <label className="prop-label">宽:<input className="prop-input" type="number" value={editableProps.width} onChange={e => handleInputChange('width', e.target.value)} /></label>
             <label className="prop-label">高:<input className="prop-input" type="number" value={editableProps.height} onChange={e => handleInputChange('height', e.target.value)} /></label>
           </div>
+        </div>
         </div>
       </div>
     );

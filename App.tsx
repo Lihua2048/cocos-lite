@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Provider, useSelector } from "react-redux";
+import { Provider, useSelector, useDispatch } from "react-redux";
 import { store } from "./editor/store";
 import { RootState, SceneCompositionMode } from "./core/types";
+import { loadSavedState } from "./core/actions";
+import { AutoSave } from "./core/utils/autoSave";
 
 import Canvas from "./editor/components/canvas/Canvas";
 import PropertiesPanel from "./editor/components/properties/PropertiesPanel";
@@ -39,9 +41,30 @@ export default function App() {
 }
 
 function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
+  const dispatch = useDispatch();
   const [phase2Initialized, setPhase2Initialized] = useState(false);
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
   const [scenesLoaded, setScenesLoaded] = useState(false);
+  const [stateLoaded, setStateLoaded] = useState(false);
+
+  // 加载保存的状态
+  useEffect(() => {
+    const loadState = async () => {
+      try {
+        const savedState = await AutoSave.loadEditorState();
+        if (savedState) {
+          dispatch(loadSavedState(savedState));
+          console.log('已加载保存的编辑器状态');
+        }
+      } catch (error) {
+        console.error('加载保存状态失败:', error);
+      } finally {
+        setStateLoaded(true);
+      }
+    };
+
+    loadState();
+  }, [dispatch]);
 
   // 获取场景组合模式状态
   const { compositionMode, sceneComposition } = useSelector((state: RootState) => ({
@@ -211,7 +234,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8e8e8",
   },
   rightPanel: {
-    width: 300,
+    width: 600,
     backgroundColor: "#ffffff",
     borderLeftWidth: 1,
     borderLeftColor: "#ddd",

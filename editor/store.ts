@@ -1,7 +1,8 @@
 import { configureStore, Middleware, combineReducers } from '@reduxjs/toolkit';
-import { editorReducer } from '../core/reducer';
+import { editorReducerWithAutoSave } from '../core/reducer';
 import { projectReducer } from '../core/reducers/projectReducer';
 import { CrossPlatformStorage } from '../core/utils/CrossPlatformStorage';
+import { AutoSave } from '../core/utils/autoSave';
 
 // 初始化时创建默认的main项目和场景
 const createInitialState = () => {
@@ -338,7 +339,7 @@ const projectSwitchMiddleware: Middleware = (store) => (next) => (action: any) =
 
 // 组合所有 reducers
 const rootReducer = combineReducers({
-  editor: editorReducer,
+  editor: editorReducerWithAutoSave,
   projects: projectReducer,
 });
 

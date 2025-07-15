@@ -3,6 +3,7 @@
 
 import { EditorState, SceneData, SceneCompositionMode } from "./types";
 import { EditorAction } from "./actions";
+import { AutoSave } from "./utils/autoSave";
 
 // 修复：明确定义 reducer 类型
 const initialState: EditorState = {
@@ -50,12 +51,12 @@ export function editorReducer(
       };
     }
     case 'SAVE_ANIMATION': {
-      const { name, propertyName, keyframes } = action.payload;
+      const { name, propertyName, keyframes, duration } = action.payload as any;
       return {
         ...state,
         animations: {
           ...state.animations,
-          [name]: { propertyName, keyframes }
+          [name]: { propertyName, keyframes, duration: duration || 10 }
         }
       };
     }
@@ -473,6 +474,27 @@ export function editorReducer(
       };
     }
 
+    case "UPDATE_ENTITY_ANIMATION": {
+      const { entityId, animation } = action.payload;
+      const entity = state.entities[entityId];
+
+      if (!entity) return state;
+
+      return {
+        ...state,
+        entities: {
+          ...state.entities,
+          [entityId]: {
+            ...entity,
+            animation: {
+              ...entity.animation,
+              ...animation,
+            },
+          },
+        },
+      };
+    }
+
     case 'CREATE_SCENE': {
       const { id, name } = action.payload;
       const newScene: SceneData = {
@@ -741,9 +763,41 @@ export function editorReducer(
       };
     }
 
+    case "LOAD_SAVED_STATE": {
+      const savedState = action.payload;
+      return {
+        ...state,
+        ...savedState,
+        // 重置一些运行时状态
+        selectedEntityId: null,
+        physicsRunning: false
+      };
+    }
+
     default:
       return state;
   }
 }
+
+// 包装reducer以添加自动保存功能
+export const editorReducerWithAutoSave = (state: EditorState = initialState, action: EditorAction): EditorState => {
+  const newState = editorReducer(state, action);
+
+  // 只在状态真正改变时才保存，且排除一些不需要保存的action
+  const shouldSave = newState !== state && ![
+    'SELECT_ENTITY',
+    'SET_PHYSICS_RUNNING'
+  ].includes(action.type);
+
+  if (shouldSave) {
+    // 异步保存，不阻塞UI
+    AutoSave.saveEditorState(newState).catch(console.error);
+  }
+
+  return newState;
+};
+
+// 默认导出包装后的reducer
+export default editorReducerWithAutoSave;
 
 // （已上移并合并 initialState，避免重复声明）
