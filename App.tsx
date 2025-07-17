@@ -26,6 +26,7 @@ import NewProjectSelectorPanel from "./editor/components/project/NewProjectSelec
 import { BuildManagerPanel } from "./build/BuildManagerPanel";
 import SceneCompositionEditor from "./editor/components/scene/SceneCompositionEditor";
 import SceneCompositionModeSelector from "./editor/components/scene/SceneCompositionModeSelector";
+import BlueprintEditor from "./editor/components/blueprint/BlueprintEditor";
 
 export default function App() {
   const resourceManager = useRef(new ResourceManager());
@@ -46,6 +47,7 @@ function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
   const [scenesLoaded, setScenesLoaded] = useState(false);
   const [stateLoaded, setStateLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<'blueprint' | 'editor'>('editor');
 
   // 加载保存的状态
   useEffect(() => {
@@ -130,6 +132,36 @@ function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
         </View>
 
         <View style={styles.managerSection}>
+          {/* 三段式视图切换按钮 */}
+          <View style={styles.viewModeSwitch}>
+            <TouchableOpacity
+              style={[
+                styles.viewModeButton,
+                styles.viewModeButtonLeft,
+                viewMode === 'blueprint' && styles.viewModeButtonActive
+              ]}
+              onPress={() => setViewMode('blueprint')}
+            >
+              <Text style={[
+                styles.viewModeButtonText,
+                viewMode === 'blueprint' && styles.viewModeButtonTextActive
+              ]}>蓝图节点</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.viewModeButton,
+                styles.viewModeButtonRight,
+                viewMode === 'editor' && styles.viewModeButtonActive
+              ]}
+              onPress={() => setViewMode('editor')}
+            >
+              <Text style={[
+                styles.viewModeButtonText,
+                viewMode === 'editor' && styles.viewModeButtonTextActive
+              ]}>编辑器</Text>
+            </TouchableOpacity>
+          </View>
+          
           <SceneCompositionModeSelector />
           <NewProjectSelectorPanel />
           <NewSceneManagerPanel />
@@ -148,24 +180,28 @@ function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
 
 
         {/* 主工作区 */}
-        <View style={styles.mainArea}>
-          {/* 左侧面板 */}
-          <View style={styles.leftPanel}>
-            <ComponentPalette />
-            <EntityListPane />
-            <ResourceManagerPanel resourceManager={resourceManager} />
-          </View>
+        {viewMode === 'editor' ? (
+          <View style={styles.mainArea}>
+            {/* 左侧面板 */}
+            <View style={styles.leftPanel}>
+              <ComponentPalette />
+              <EntityListPane />
+              <ResourceManagerPanel resourceManager={resourceManager} />
+            </View>
 
-          {/* 中央画布区域 */}
-          <View style={styles.centerPanel}>
-            <Canvas resourceManager={resourceManager} />
-          </View>
+            {/* 中央画布区域 */}
+            <View style={styles.centerPanel}>
+              <Canvas resourceManager={resourceManager} />
+            </View>
 
-          {/* 右侧属性面板 */}
-          <View style={styles.rightPanel}>
-            <PropertiesPanel />
+            {/* 右侧属性面板 */}
+            <View style={styles.rightPanel}>
+              <PropertiesPanel />
+            </View>
           </View>
-        </View>
+        ) : (
+          <BlueprintEditor />
+        )}
       </View>
     </Provider>
   );
@@ -238,5 +274,35 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderLeftWidth: 1,
     borderLeftColor: "#ddd",
+  },
+  viewModeSwitch: {
+    flexDirection: "row",
+    backgroundColor: "#3e3e42",
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  viewModeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: "transparent",
+  },
+  viewModeButtonLeft: {
+    borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 4,
+  },
+  viewModeButtonRight: {
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  viewModeButtonActive: {
+    backgroundColor: "#007ACC",
+  },
+  viewModeButtonText: {
+    color: "#cccccc",
+    fontSize: 14,
+  },
+  viewModeButtonTextActive: {
+    color: "#ffffff",
+    fontWeight: "bold",
   },
 });

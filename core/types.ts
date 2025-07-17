@@ -1,3 +1,5 @@
+import { BlueprintState } from './types/blueprint';
+
 export interface EditorState {
   entities: Record<string, Entity>;
   selectedEntityId: string | null;
@@ -17,6 +19,7 @@ export interface EditorState {
 export interface RootState {
   editor: EditorState;
   projects: ProjectManagerState;
+  blueprint: BlueprintState;
 }
 
 export type SceneActionType =
