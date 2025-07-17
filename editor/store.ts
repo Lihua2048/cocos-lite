@@ -1,6 +1,7 @@
 import { configureStore, Middleware, combineReducers } from '@reduxjs/toolkit';
 import { editorReducerWithAutoSave } from '../core/reducer';
 import { projectReducer } from '../core/reducers/projectReducer';
+import blueprintReducer from '../core/reducers/blueprintReducer';
 import { CrossPlatformStorage } from '../core/utils/CrossPlatformStorage';
 import { AutoSave } from '../core/utils/autoSave';
 
@@ -101,6 +102,84 @@ const createInitialState = () => {
       },
       currentProjectId: defaultProjectId,
       recentProjects: [defaultProjectId]
+    },
+    blueprint: {
+      nodes: [
+        {
+          id: 'node_1',
+          type: 'input',
+          label: '开始节点',
+          position: { x: 100, y: 100 },
+          inputs: [],
+          outputs: ['output'],
+          data: {},
+          style: {
+            backgroundColor: '#4CAF50',
+            width: 150,
+            height: 80
+          }
+        },
+        {
+          id: 'node_2',
+          type: 'process',
+          label: '处理节点',
+          position: { x: 350, y: 100 },
+          inputs: ['input'],
+          outputs: ['output'],
+          data: {},
+          style: {
+            backgroundColor: '#FF9800',
+            width: 150,
+            height: 80
+          }
+        },
+        {
+          id: 'node_3',
+          type: 'output',
+          label: '结束节点',
+          position: { x: 600, y: 100 },
+          inputs: ['input'],
+          outputs: [],
+          data: {},
+          style: {
+            backgroundColor: '#2196F3',
+            width: 150,
+            height: 80
+          }
+        }
+      ],
+      connections: [
+        {
+          id: 'conn_1',
+          from: 'node_1',
+          to: 'node_2',
+          fromPort: 'output',
+          toPort: 'input',
+          style: {
+            color: '#666',
+            width: 2
+          }
+        },
+        {
+          id: 'conn_2',
+          from: 'node_2',
+          to: 'node_3',
+          fromPort: 'output',
+          toPort: 'input',
+          style: {
+            color: '#666',
+            width: 2
+          }
+        }
+      ],
+      zoom: 1,
+      pan: { x: 0, y: 0 },
+      history: {
+        past: [],
+        future: []
+      },
+      canUndo: false,
+      canRedo: false
     }
   };
 };
@@ -341,6 +420,7 @@ const projectSwitchMiddleware: Middleware = (store) => (next) => (action: any) =
 const rootReducer = combineReducers({
   editor: editorReducerWithAutoSave,
   projects: projectReducer,
+  blueprint: blueprintReducer,
 });
 
 // 更新 RootState 类型
