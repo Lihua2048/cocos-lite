@@ -35,7 +35,16 @@ const createInitialState = () => {
         mode: 0, // SceneCompositionMode.DEFAULT
         selectedScenes: [],
         lockedScenes: {}
-      }
+      },
+      blueprintEditor: {
+        isVisible: false,
+        currentProject: null,
+        history: {
+          states: [],
+          currentIndex: -1
+        }
+      },
+      editorMode: 'canvas'
     },
     projects: {
       projects: {

@@ -13,7 +13,7 @@ export const loadSavedState = (savedState: any): EditorAction => ({
 // 导出项目管理相关actions
 export * from './actions/projectActions';
 
-import { Entity, EntityProperty, SceneData, TextureResource, SceneCompositionMode, SceneCompositionState } from "./types";
+import { Entity, EntityProperty, SceneData, TextureResource, SceneCompositionMode, SceneCompositionState, BlueprintProject, BlueprintNode, BlueprintConnection } from "./types";
 
 
 export const ADD_ENTITY = "ADD_ENTITY";
@@ -65,6 +65,16 @@ export type EditorAction =
   | { type: "LOAD_PROJECT_SCENES"; payload: { projectId: string } }
   | { type: "CREATE_PROJECT"; payload: { project: any } }
   | { type: "LOAD_PROJECT_DATA"; payload: { scenes: any; currentSceneId: string } }
+  // 蓝图编辑器相关
+  | { type: "SET_EDITOR_MODE"; payload: 'canvas' | 'blueprint' }
+  | { type: "SET_BLUEPRINT_PROJECT"; payload: BlueprintProject | null }
+  | { type: "ADD_BLUEPRINT_NODE"; payload: { node: BlueprintNode } }
+  | { type: "UPDATE_BLUEPRINT_NODE"; payload: { nodeId: string; updates: Partial<BlueprintNode> } }
+  | { type: "DELETE_BLUEPRINT_NODE"; payload: { nodeId: string } }
+  | { type: "ADD_BLUEPRINT_CONNECTION"; payload: { connection: BlueprintConnection } }
+  | { type: "DELETE_BLUEPRINT_CONNECTION"; payload: { connectionId: string } }
+  | { type: "SELECT_BLUEPRINT_NODES"; payload: { nodeIds: string[] } }
+  | { type: "SET_BLUEPRINT_VIEWPORT"; payload: { x: number; y: number; scale: number } }
   // 自动保存相关
   | { type: "LOAD_SAVED_STATE"; payload: any };
 
@@ -97,6 +107,52 @@ export const renameScene = (id: string, newName: string) => ({
 export const setPhysicsRunning = (running: boolean): EditorAction => ({
   type: "SET_PHYSICS_RUNNING",
   payload: running,
+});
+
+// 蓝图编辑器相关actions
+export const setEditorMode = (mode: 'canvas' | 'blueprint'): EditorAction => ({
+  type: "SET_EDITOR_MODE",
+  payload: mode,
+});
+
+export const setBlueprintProject = (project: BlueprintProject | null): EditorAction => ({
+  type: "SET_BLUEPRINT_PROJECT",
+  payload: project,
+});
+
+export const addBlueprintNode = (node: BlueprintNode): EditorAction => ({
+  type: "ADD_BLUEPRINT_NODE",
+  payload: { node },
+});
+
+export const updateBlueprintNode = (nodeId: string, updates: Partial<BlueprintNode>): EditorAction => ({
+  type: "UPDATE_BLUEPRINT_NODE",
+  payload: { nodeId, updates },
+});
+
+export const deleteBlueprintNode = (nodeId: string): EditorAction => ({
+  type: "DELETE_BLUEPRINT_NODE",
+  payload: { nodeId },
+});
+
+export const addBlueprintConnection = (connection: BlueprintConnection): EditorAction => ({
+  type: "ADD_BLUEPRINT_CONNECTION",
+  payload: { connection },
+});
+
+export const deleteBlueprintConnection = (connectionId: string): EditorAction => ({
+  type: "DELETE_BLUEPRINT_CONNECTION",
+  payload: { connectionId },
+});
+
+export const selectBlueprintNodes = (nodeIds: string[]): EditorAction => ({
+  type: "SELECT_BLUEPRINT_NODES",
+  payload: { nodeIds },
+});
+
+export const setBlueprintViewport = (x: number, y: number, scale: number): EditorAction => ({
+  type: "SET_BLUEPRINT_VIEWPORT",
+  payload: { x, y, scale },
 });
 
 // 添加物理组件

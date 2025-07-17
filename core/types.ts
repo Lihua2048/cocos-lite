@@ -10,6 +10,10 @@ export interface EditorState {
   sceneHistory: string[]; // 场景切换历史
   // 场景组合状态
   sceneComposition: SceneCompositionState;
+  // 蓝图编辑器状态
+  blueprintEditor: BlueprintEditorState;
+  // 当前编辑器模式 ('canvas' | 'blueprint')
+  editorMode: 'canvas' | 'blueprint';
 }
 
 
@@ -317,6 +321,62 @@ export interface SceneCompositionState {
   mode: SceneCompositionMode;
   selectedScenes: string[];    // 叠加模式下选中的场景
   lockedScenes: SceneLockState; // 混合模式下的锁定状态
+}
+
+// 蓝图编辑器相关类型
+export interface BlueprintNode {
+  id: string;
+  name: string;
+  type: 'action' | 'event' | 'condition' | 'variable' | 'function';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  inputs: NodePort[];
+  outputs: NodePort[];
+  properties: Record<string, any>;
+  color: string;
+}
+
+export interface NodePort {
+  id: string;
+  name: string;
+  type: 'exec' | 'data' | 'object';
+  dataType?: 'string' | 'number' | 'boolean' | 'vector' | 'object';
+  x: number;
+  y: number;
+}
+
+export interface BlueprintConnection {
+  id: string;
+  fromNodeId: string;
+  fromPortId: string;
+  toNodeId: string;
+  toPortId: string;
+  type: 'exec' | 'data';
+  color: string;
+}
+
+export interface BlueprintEditorState {
+  isVisible: boolean;
+  currentProject: BlueprintProject | null;
+  history: {
+    states: any[];
+    currentIndex: number;
+  };
+}
+
+export interface BlueprintProject {
+  id: string;
+  name: string;
+  nodes: Map<string, BlueprintNode>;
+  connections: Map<string, BlueprintConnection>;
+  viewport: {
+    x: number;
+    y: number;
+    scale: number;
+  };
+  selectedNodes: Set<string>;
 }
 
 

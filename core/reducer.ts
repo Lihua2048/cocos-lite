@@ -1,7 +1,7 @@
 // core/reducer.ts
 // core/reducer.ts
 
-import { EditorState, SceneData, SceneCompositionMode } from "./types";
+import { EditorState, SceneData, SceneCompositionMode, BlueprintEditorState, BlueprintProject } from "./types";
 import { EditorAction } from "./actions";
 import { AutoSave } from "./utils/autoSave";
 
@@ -31,7 +31,16 @@ const initialState: EditorState = {
     mode: SceneCompositionMode.DEFAULT,
     selectedScenes: [],
     lockedScenes: {}
-  }
+  },
+  blueprintEditor: {
+    isVisible: false,
+    currentProject: null,
+    history: {
+      states: [],
+      currentIndex: -1
+    }
+  },
+  editorMode: 'canvas'
 };
 
 export function editorReducer(
@@ -774,6 +783,157 @@ export function editorReducer(
       };
     }
 
+    // 蓝图编辑器相关cases
+    case "SET_EDITOR_MODE": {
+      return {
+        ...state,
+        editorMode: action.payload
+      };
+    }
+
+    case "SET_BLUEPRINT_PROJECT": {
+      return {
+        ...state,
+        blueprintEditor: {
+          ...state.blueprintEditor,
+          currentProject: action.payload,
+          isVisible: action.payload !== null
+        }
+      };
+    }
+
+    case "ADD_BLUEPRINT_NODE": {
+      if (!state.blueprintEditor.currentProject) return state;
+      
+      const newNodes = new Map(state.blueprintEditor.currentProject.nodes);
+      newNodes.set(action.payload.node.id, action.payload.node);
+      
+      return {
+        ...state,
+        blueprintEditor: {
+          ...state.blueprintEditor,
+          currentProject: {
+            ...state.blueprintEditor.currentProject,
+            nodes: newNodes
+          }
+        }
+      };
+    }
+
+    case "UPDATE_BLUEPRINT_NODE": {
+      if (!state.blueprintEditor.currentProject) return state;
+      
+      const node = state.blueprintEditor.currentProject.nodes.get(action.payload.nodeId);
+      if (!node) return state;
+      
+      const newNodes = new Map(state.blueprintEditor.currentProject.nodes);
+      newNodes.set(action.payload.nodeId, { ...node, ...action.payload.updates });
+      
+      return {
+        ...state,
+        blueprintEditor: {
+          ...state.blueprintEditor,
+          currentProject: {
+            ...state.blueprintEditor.currentProject,
+            nodes: newNodes
+          }
+        }
+      };
+    }
+
+    case "DELETE_BLUEPRINT_NODE": {
+      if (!state.blueprintEditor.currentProject) return state;
+      
+      const newNodes = new Map(state.blueprintEditor.currentProject.nodes);
+      newNodes.delete(action.payload.nodeId);
+      
+      const newConnections = new Map(state.blueprintEditor.currentProject.connections);
+      newConnections.forEach((connection, connectionId) => {
+        if (connection.fromNodeId === action.payload.nodeId || 
+            connection.toNodeId === action.payload.nodeId) {
+          newConnections.delete(connectionId);
+        }
+      });
+      
+      return {
+        ...state,
+        blueprintEditor: {
+          ...state.blueprintEditor,
+          currentProject: {
+            ...state.blueprintEditor.currentProject,
+            nodes: newNodes,
+            connections: newConnections
+          }
+        }
+      };
+    }
+
+    case "ADD_BLUEPRINT_CONNECTION": {
+      if (!state.blueprintEditor.currentProject) return state;
+      
+      const newConnections = new Map(state.blueprintEditor.currentProject.connections);
+      newConnections.set(action.payload.connection.id, action.payload.connection);
+      
+      return {
+        ...state,
+        blueprintEditor: {
+          ...state.blueprintEditor,
+          currentProject: {
+            ...state.blueprintEditor.currentProject,
+            connections: newConnections
+          }
+        }
+      };
+    }
+
+    case "DELETE_BLUEPRINT_CONNECTION": {
+      if (!state.blueprintEditor.currentProject) return state;
+      
+      const newConnections = new Map(state.blueprintEditor.currentProject.connections);
+      newConnections.delete(action.payload.connectionId);
+      
+      return {
+        ...state,
+        blueprintEditor: {
+          ...state.blueprintEditor,
+          currentProject: {
+            ...state.blueprintEditor.currentProject,
+            connections: newConnections
+          }
+        }
+      };
+    }
+
+    case "SELECT_BLUEPRINT_NODES": {
+      if (!state.blueprintEditor.currentProject) return state;
+      
+      return {
+        ...state,
+        blueprintEditor: {
+          ...state.blueprintEditor,
+          currentProject: {
+            ...state.blueprintEditor.currentProject,
+            selectedNodes: new Set(action.payload.nodeIds)
+          }
+        }
+      };
+    }
+
+    case "SET_BLUEPRINT_VIEWPORT": {
+      if (!state.blueprintEditor.currentProject) return state;
+      
+      return {
+        ...state,
+        blueprintEditor: {
+          ...state.blueprintEditor,
+          currentProject: {
+            ...state.blueprintEditor.currentProject,
+            viewport: action.payload
+          }
+        }
+      };
+    }
+
     default:
       return state;
   }
@@ -786,7 +946,9 @@ export const editorReducerWithAutoSave = (state: EditorState = initialState, act
   // 只在状态真正改变时才保存，且排除一些不需要保存的action
   const shouldSave = newState !== state && ![
     'SELECT_ENTITY',
-    'SET_PHYSICS_RUNNING'
+    'SET_PHYSICS_RUNNING',
+    'SELECT_BLUEPRINT_NODES',
+    'SET_BLUEPRINT_VIEWPORT'
   ].includes(action.type);
 
   if (shouldSave) {

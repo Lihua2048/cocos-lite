@@ -13,6 +13,8 @@ import ResourceManager from "./core/resources/ResourceManager";
 import ResourceManagerPanel from "./editor/components/resources/ResourceManagerPanel";
 import UnifiedToolbar from "./editor/components/toolbar/UnifiedToolbar";
 import ComponentPalette from "./editor/components/ComponentPalette";
+import BlueprintNodeEditor from "./editor/components/BlueprintNodeEditor";
+import EditorModeToggle from "./editor/components/EditorModeToggle";
 
 // 第二期核心功能导入
 import {
@@ -66,10 +68,12 @@ function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
     loadState();
   }, [dispatch]);
 
-  // 获取场景组合模式状态
-  const { compositionMode, sceneComposition } = useSelector((state: RootState) => ({
+  // 获取场景组合模式状态和编辑器模式
+  const { compositionMode, sceneComposition, editorMode, blueprintEditor } = useSelector((state: RootState) => ({
     compositionMode: state.editor.sceneComposition.mode,
-    sceneComposition: state.editor.sceneComposition
+    sceneComposition: state.editor.sceneComposition,
+    editorMode: state.editor.editorMode,
+    blueprintEditor: state.editor.blueprintEditor
   }));
 
   // 调试场景组合状态变化
@@ -130,6 +134,7 @@ function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
         </View>
 
         <View style={styles.managerSection}>
+          <EditorModeToggle />
           <SceneCompositionModeSelector />
           <NewProjectSelectorPanel />
           <NewSceneManagerPanel />
@@ -149,22 +154,38 @@ function AppContent({ resourceManager }: { resourceManager: ResourceManager }) {
 
         {/* 主工作区 */}
         <View style={styles.mainArea}>
-          {/* 左侧面板 */}
-          <View style={styles.leftPanel}>
-            <ComponentPalette />
-            <EntityListPane />
-            <ResourceManagerPanel resourceManager={resourceManager} />
-          </View>
+          {editorMode === 'blueprint' ? (
+            // 蓝图编辑器模式
+            <BlueprintNodeEditor 
+              project={blueprintEditor.currentProject || undefined}
+              onProjectChange={(project) => {
+                dispatch({ type: 'SET_BLUEPRINT_PROJECT', payload: project });
+              }}
+              onNodeSelect={(nodeIds) => {
+                dispatch({ type: 'SELECT_BLUEPRINT_NODES', payload: { nodeIds } });
+              }}
+            />
+          ) : (
+            // 画布编辑器模式（原有布局）
+            <>
+              {/* 左侧面板 */}
+              <View style={styles.leftPanel}>
+                <ComponentPalette />
+                <EntityListPane />
+                <ResourceManagerPanel resourceManager={resourceManager} />
+              </View>
 
-          {/* 中央画布区域 */}
-          <View style={styles.centerPanel}>
-            <Canvas resourceManager={resourceManager} />
-          </View>
+              {/* 中央画布区域 */}
+              <View style={styles.centerPanel}>
+                <Canvas resourceManager={resourceManager} />
+              </View>
 
-          {/* 右侧属性面板 */}
-          <View style={styles.rightPanel}>
-            <PropertiesPanel />
-          </View>
+              {/* 右侧属性面板 */}
+              <View style={styles.rightPanel}>
+                <PropertiesPanel />
+              </View>
+            </>
+          )}
         </View>
       </View>
     </Provider>
